@@ -11,8 +11,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V10：加入 Quota 自動結算功能
-VERSION = "2026.03.11.V10" 
+# 版本號 V11：整合 Quota 統計與詳細狀態日誌輸出
+VERSION = "2026.03.11.V11" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -30,7 +30,7 @@ def get_supabase_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_and_save():
-    print(f"🚀 [版本 {VERSION}] 啟動採集任務 (含 Quota 統計)...")
+    print(f"🚀 [版本 {VERSION}] 啟動採集任務...")
     youtube = get_yt_client()
     supabase = get_supabase_client()
     
@@ -44,7 +44,7 @@ def fetch_and_save():
             id=",".join(CHANNEL_IDS)
         )
         ch_response = ch_request.execute()
-        quota_used += 1 # channels.list 消耗 1 點
+        quota_used += 1 
     except Exception as e:
         print(f"❌ YouTube API 呼叫失敗: {e}")
         return
@@ -61,7 +61,7 @@ def fetch_and_save():
             "raw_stats": item["statistics"]
         }
 
-    # --- 2. 收集各頻道活動 ---
+    # --- 2. 收集各頻道活動 (深挖判定) ---
     print(f"📡 步驟 2: 進行彈性深挖 (個別頻道活動查詢)...")
     all_video_ids = []
     cid_to_video_ids = {}
@@ -74,7 +74,7 @@ def fetch_and_save():
                 maxResults=10
             )
             act_response = act_request.execute()
-            quota_used += 1 # 每個頻道的 activities.list 消耗 1 點
+            quota_used += 1 
             
             items = act_response.get("items", [])
             vids = []
@@ -98,14 +98,14 @@ def fetch_and_save():
     # --- 3. 批量檢查影片狀態 ---
     live_info_map = {}
     if all_video_ids:
-        print(f"📡 步驟 3: 批量解析 {len(all_video_ids)} 個潛在影片狀態...")
+        print(f"📡 步驟 3: 批量解析 {len(all_video_ids)} 個影片的直播狀態...")
         try:
             vid_request = youtube.videos().list(
                 part="snippet",
                 id=",".join(all_video_ids[:50])
             )
             vid_response = vid_request.execute()
-            quota_used += 1 # 批量 videos.list 消耗 1 點
+            quota_used += 1 
             
             for v_item in vid_response.get("items", []):
                 vid = v_item["id"]
@@ -128,17 +128,23 @@ def fetch_and_save():
             if prio > current_max_prio:
                 current_max_prio = prio
                 best_status = s
-            if current_max_prio == 3:
+            if current_max_prio == 3: # 找到直播中就直接結案
                 break
         
         is_live = (best_status == "live") if best_status else None
+        
+        # --- 新增: 在 Log 中輸出判定結果 (與 V9 一致) ---
+        print(f"   📝 {data['title']} | 判定結果: {best_status if best_status else 'NULL (未知)'}")
 
         # 寫入母表
         try:
             supabase.table("yt_channels").upsert({
-                "channel_id": cid, "title": data["title"], "custom_url": data["custom_url"],
+                "channel_id": cid, 
+                "title": data["title"], 
+                "custom_url": data["custom_url"],
             }).execute()
-        except: pass
+        except Exception as e:
+            print(f"      ❌ 母表更新失敗: {e}")
 
         # 寫入快照
         try:
@@ -152,7 +158,7 @@ def fetch_and_save():
                 "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
             }).execute()
         except Exception as e:
-            print(f"   ❌ {data['title']} 快照存檔失敗: {e}")
+            print(f"      ❌ 快照存檔失敗: {e}")
 
     # --- 最終結算 ---
     print(f"\n📊 --- 任務總結報告 ---")
