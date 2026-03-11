@@ -11,12 +11,13 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# --- 這裡我加了一個版本號，幫你確認有沒有跑對版 ---
-VERSION = "2024.03.11.V3" 
+# 版本號，方便確認跑的是最新版
+VERSION = "2026.03.11.V4" 
 
-
+# 頻道 ID 清單
 CHANNEL_IDS = [
-    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと (Toto Kogara) 的 ID
+    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと
+    "UCPGjKniCXat6xZ5T7DrWRBQ", # 測試直播中tag用頻道
 ]
 
 def get_yt_client():
@@ -31,9 +32,8 @@ def fetch_and_save():
     youtube = get_yt_client()
     supabase = get_supabase_client()
     
-    print(f"📡 正在請求頻道: {CHANNEL_IDS}")
-    
     try:
+        # 請求頻道數據
         request = youtube.channels().list(
             part="snippet,statistics",
             id=",".join(CHANNEL_IDS)
@@ -47,7 +47,7 @@ def fetch_and_save():
     print(f"🔎 YouTube API 回傳了 {len(items)} 筆資料")
 
     if not items:
-        print("⚠️ 警告：回傳結果為空！請檢查 CHANNEL_IDS 是否正確。")
+        print("⚠️ 警告：回傳結果為空！")
         return
 
     for item in items:
@@ -56,7 +56,15 @@ def fetch_and_save():
         stats = item.get("statistics", {})
         title = snippet.get('title')
         
-        print(f"💾 正在寫入: {title} ({channel_id})")
+        # --- 處理直播狀態邏輯 (修正 NULL 問題) ---
+        # 如果 snippet 裡沒有這個欄位，則預設為 "none"
+        raw_live_content = snippet.get("liveBroadcastContent", "none")
+        
+        # 確保 live_status 絕對不會是 None (NULL)
+        live_status = str(raw_live_content) if raw_live_content else "none"
+        is_live = (live_status == "live")
+        
+        print(f"💾 正在寫入: {title} | 狀態: {live_status}")
 
         # 寫入母表
         try:
@@ -66,7 +74,7 @@ def fetch_and_save():
                 "custom_url": snippet.get("customUrl"),
             }).execute()
         except Exception as e:
-            print(f"❌ 寫入母表失敗 (請檢查 RLS): {e}")
+            print(f"❌ 寫入母表失敗: {e}")
 
         # 寫入快照
         try:
@@ -74,15 +82,18 @@ def fetch_and_save():
                 "channel_id": channel_id,
                 "subscriber_count": int(stats.get("subscriberCount", 0)),
                 "total_views": int(stats.get("viewCount", 0)),
-                "is_live": snippet.get("liveBroadcastContent") == "live",
-                "live_status": snippet.get("liveBroadcastContent"),
+                "is_live": is_live,
+                "live_status": live_status,
                 "check_time": datetime.now(timezone.utc).isoformat(),
                 "raw_json": {"snippet": snippet, "statistics": stats}
             }
             supabase.table("yt_stats_daily").insert(snapshot_data).execute()
-            print(f"✅ {title} 資料已成功寫入 Supabase")
+            print(f"✅ {title} 數據寫入成功 (live_status: {live_status})")
         except Exception as e:
-            print(f"❌ 寫入快照失敗 (請檢查 RLS): {e}")
+            print(f"❌ 寫入快照失敗: {e}")
 
 if __name__ == "__main__":
-    fetch_and_save()
+    if not all([YT_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
+        print("❌ 錯誤：環境變數缺失。")
+    else:
+        fetch_and_save()
