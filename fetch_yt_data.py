@@ -12,7 +12,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號，方便確認跑的是最新版
-VERSION = "2026.03.11.V4" 
+VERSION = "2026.03.11.V5" 
 
 # 頻道 ID 清單
 CHANNEL_IDS = [
@@ -56,15 +56,17 @@ def fetch_and_save():
         stats = item.get("statistics", {})
         title = snippet.get('title')
         
-        # --- 處理直播狀態邏輯 (修正 NULL 問題) ---
-        # 如果 snippet 裡沒有這個欄位，則預設為 "none"
-        raw_live_content = snippet.get("liveBroadcastContent", "none")
+        # --- 處理直播狀態邏輯 (允許 NULL) ---
+        # 依照老闆要求，不設定預設值。如果 API 沒回傳該欄位，則變數為 None (資料庫存為 NULL)
+        live_status = snippet.get("liveBroadcastContent") 
         
-        # 確保 live_status 絕對不會是 None (NULL)
-        live_status = str(raw_live_content) if raw_live_content else "none"
-        is_live = (live_status == "live")
+        # 如果 live_status 是 None，is_live 也應該是 None，代表「未知」
+        if live_status is not None:
+            is_live = (live_status == "live")
+        else:
+            is_live = None
         
-        print(f"💾 正在寫入: {title} | 狀態: {live_status}")
+        print(f"💾 正在寫入: {title} | 狀態: {live_status if live_status else 'NULL'}")
 
         # 寫入母表
         try:
@@ -88,7 +90,7 @@ def fetch_and_save():
                 "raw_json": {"snippet": snippet, "statistics": stats}
             }
             supabase.table("yt_stats_daily").insert(snapshot_data).execute()
-            print(f"✅ {title} 數據寫入成功 (live_status: {live_status})")
+            print(f"✅ {title} 數據寫入成功 (live_status: {live_status if live_status else 'NULL'})")
         except Exception as e:
             print(f"❌ 寫入快照失敗: {e}")
 
