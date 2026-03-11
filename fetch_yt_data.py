@@ -144,6 +144,3 @@ if __name__ == "__main__":
         print("❌ 錯誤：環境變數缺失。")
     else:
         fetch_and_save()
-        print("❌ 錯誤：環境變數缺失。")
-    else:
-        fetch_and_save()
