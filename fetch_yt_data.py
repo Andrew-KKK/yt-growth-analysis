@@ -4,13 +4,11 @@ from datetime import datetime, timezone
 from googleapiclient.discovery import build
 from supabase import create_client, Client
 
-# 1. 從 GitHub Secrets 讀取環境變數
 YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
-# 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
+# 更新後的頻道 ID (請確保沒有多餘的字母)
 CHANNEL_IDS = [
     "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと
 ]
@@ -25,53 +23,55 @@ def fetch_and_save():
     youtube = get_yt_client()
     supabase = get_supabase_client()
     
-    # 呼叫 YouTube API 獲取數據
+    print(f"📡 正在向 YouTube API 請求 {len(CHANNEL_IDS)} 個頻道的數據...")
+    
     request = youtube.channels().list(
         part="snippet,statistics",
         id=",".join(CHANNEL_IDS)
     )
     response = request.execute()
 
-    if not response.get("items"):
-        print("No data found for the provided channel IDs.")
+    items = response.get("items", [])
+    print(f"🔎 API 回傳了 {len(items)} 個頻道的結果。")
+
+    if not items:
+        print("⚠️ 警告：找不到任何頻道資料，請檢查 CHANNEL_IDS 是否正確。")
         return
 
-    for item in response.get("items", []):
+    for item in items:
         channel_id = item["id"]
         snippet = item.get("snippet", {})
         stats = item.get("statistics", {})
+        title = snippet.get('title')
         
-        # A. 更新或插入頻道基本資訊
-        channel_data = {
-            "channel_id": channel_id,
-            "title": snippet.get("title"),
-            "custom_url": snippet.get("customUrl"),
-            # category 欄位留給之後的分群分析使用
-        }
-        # 使用 upsert，如果 ID 已存在則更新，不存在則插入
-        supabase.table("yt_channels").upsert(channel_data).execute()
+        print(f"💾 正在寫入: {title} ({channel_id})")
 
-        # B. 寫入每日快照數據 (Snapshot)
-        live_status = snippet.get("liveBroadcastContent", "none")
-        snapshot_data = {
-            "channel_id": channel_id,
-            "subscriber_count": int(stats.get("subscriberCount", 0)),
-            "total_views": int(stats.get("viewCount", 0)),
-            "is_live": live_status == "live",
-            "live_status": live_status,
-            "check_time": datetime.now(timezone.utc).isoformat(),
-            # 節省空間：只存 snippet 和 stats 的 JSON
-            "raw_json": {"snippet": snippet, "statistics": stats}
-        }
-        supabase.table("yt_stats_daily").insert(snapshot_data).execute()
-        
-        print(f"✅ 成功更新: {snippet.get('title')}")
+        # 1. 更新母表
+        try:
+            supabase.table("yt_channels").upsert({
+                "channel_id": channel_id,
+                "title": title,
+                "custom_url": snippet.get("customUrl"),
+            }).execute()
+        except Exception as e:
+            print(f"❌ 寫入 yt_channels 失敗: {e}")
+
+        # 2. 插入快照
+        try:
+            live_status = snippet.get("liveBroadcastContent", "none")
+            snapshot_data = {
+                "channel_id": channel_id,
+                "subscriber_count": int(stats.get("subscriberCount", 0)),
+                "total_views": int(stats.get("viewCount", 0)),
+                "is_live": live_status == "live",
+                "live_status": live_status,
+                "check_time": datetime.now(timezone.utc).isoformat(),
+                "raw_json": {"snippet": snippet, "statistics": stats}
+            }
+            supabase.table("yt_stats_daily").insert(snapshot_data).execute()
+            print(f"✅ {title} 快照已存檔。")
+        except Exception as e:
+            print(f"❌ 寫入 yt_stats_daily 失敗: {e}")
 
 if __name__ == "__main__":
-    if not all([YT_API_KEY, SUPABASE_URL, SUPABASE_KEY]):
-        print("❌ 錯誤：找不到環境變數，請檢查 GitHub Secrets 設定。")
-    else:
-        try:
-            fetch_and_save()
-        except Exception as e:
-            print(f"❌ 執行發生錯誤: {e}")
+    fetch_and_save()
