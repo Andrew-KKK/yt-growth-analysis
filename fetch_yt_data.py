@@ -12,8 +12,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
 CHANNEL_IDS = [
-    "UC1CFuAc8u2O-uN-yU1N4S_g", # 範例頻道 1
-    "UC-hM6YJuNYVAmUWxeIr9FeA", # 範例頻道 2
+    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと
 ]
 
 def get_yt_client():
