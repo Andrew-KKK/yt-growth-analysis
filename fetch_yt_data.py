@@ -14,9 +14,9 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 # --- 這裡我加了一個版本號，幫你確認有沒有跑對版 ---
 VERSION = "2024.03.11.V3" 
 
-# 小雀とと (Toto Kogara) 的 ID
+
 CHANNEL_IDS = [
-    "UCgTzsBI0DIRopMy1JEDqnog", 
+    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと (Toto Kogara) 的 ID
 ]
 
 def get_yt_client():
