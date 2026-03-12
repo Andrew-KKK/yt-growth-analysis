@@ -18,6 +18,7 @@ VERSION = "2026.03.11.V11"
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
 CHANNEL_IDS = [
     "UC7Xglp1fske9zmRe7Oj8YyA", # 範例直播待機頻道: 
+    "UCgTzsBI0DIRopMylJEDqnog", # 範例直播待機(預計直播時間過久)頻道: 
     "UCPEKpqpHu0ojN8lJnMUGjaQ", # 範例正規直播頻道: 
     "UCexpzYDEnfmAvPSfG4xbcjA", # 範例不間斷直播頻道: 公視新聞網
     "UCW5O-tjdwofBwfispeMSPfw"  # 範例無直播無待機頻道: 
