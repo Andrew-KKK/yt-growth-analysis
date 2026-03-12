@@ -11,8 +11,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V12：加入直播時間過濾，過濾掉「萬年聊天待機室」
-VERSION = "2026.03.11.V12" 
+# 版本號 V13：修復 50 筆 ID 上限問題 & 修正活動類型字串
+VERSION = "2026.03.12.V13" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -51,7 +51,6 @@ CHANNEL_IDS = [
     "UCp_3ej2br9l9L1DSoHVDZGw", # Eris Suzukami 【VSPO! EN】
 ]
 
-# --- 設定：多久以後的直播才算「萬年待機室」 (預設 7 天) ---
 WAITING_ROOM_THRESHOLD_DAYS = 30
 
 def get_yt_client():
@@ -61,28 +60,30 @@ def get_supabase_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_and_save():
-    print(f"🚀 [版本 {VERSION}] 啟動採集任務...")
+    print(f"🚀 [版本 {VERSION}] 啟動大規模採集任務...")
     youtube = get_yt_client()
     supabase = get_supabase_client()
-    
     quota_used = 0
 
-    # 1. 頻道統計
-    print(f"📡 步驟 1: 抓取統計數據...")
-    ch_response = youtube.channels().list(part="snippet,statistics", id=",".join(CHANNEL_IDS)).execute()
-    quota_used += 1
-    
-    channel_map = {item["id"]: {
-        "title": item["snippet"].get("title"),
-        "custom_url": item["snippet"].get("customUrl"),
-        "subscriber_count": int(item["statistics"].get("subscriberCount", 0)),
-        "total_views": int(item["statistics"].get("viewCount", 0)),
-        "raw_snippet": item["snippet"],
-        "raw_stats": item["statistics"]
-    } for item in ch_response.get("items", [])}
+    # 1. 頻道統計 (支援超過 50 個頻道的批量抓取)
+    print(f"📡 步驟 1: 抓取 {len(CHANNEL_IDS)} 個頻道的統計數據...")
+    channel_map = {}
+    for i in range(0, len(CHANNEL_IDS), 50):
+        batch = CHANNEL_IDS[i:i+50]
+        ch_response = youtube.channels().list(part="snippet,statistics", id=",".join(batch)).execute()
+        quota_used += 1
+        for item in ch_response.get("items", []):
+            channel_map[item["id"]] = {
+                "title": item["snippet"].get("title"),
+                "custom_url": item["snippet"].get("customUrl"),
+                "subscriber_count": int(item["statistics"].get("subscriberCount", 0)),
+                "total_views": int(item["statistics"].get("viewCount", 0)),
+                "raw_snippet": item["snippet"],
+                "raw_stats": item["statistics"]
+            }
 
     # 2. 頻道活動深挖
-    print(f"📡 步驟 2: 彈性深挖活動...")
+    print(f"📡 步驟 2: 解析頻道活動 (尋找 upload 與 liveBroadcast)...")
     all_video_ids = []
     cid_to_video_ids = {}
 
@@ -90,47 +91,49 @@ def fetch_and_save():
         try:
             act_response = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=10).execute()
             quota_used += 1
-            vids = [act["contentDetails"]["upload"].get("videoId") if act["snippet"]["type"] == "upload" 
-                    else act["contentDetails"]["broadcast"].get("id") 
-                    for act in act_response.get("items", []) if act["snippet"]["type"] in ["upload", "broadcast"]]
-            vids = [v for v in vids if v]
+            vids = []
+            for act in act_response.get("items", []):
+                t = act["snippet"]["type"]
+                vid = None
+                if t == "upload":
+                    vid = act["contentDetails"]["upload"].get("videoId")
+                elif t == "liveBroadcast": # 修正：官方正確標籤為 liveBroadcast
+                    vid = act["contentDetails"]["liveBroadcast"].get("id")
+                
+                if vid and vid not in vids:
+                    vids.append(vid)
+                    if vid not in all_video_ids: all_video_ids.append(vid)
             cid_to_video_ids[cid] = vids
-            for v in vids:
-                if v not in all_video_ids: all_video_ids.append(v)
-        except: pass
+        except Exception as e:
+            print(f"   ⚠️ 頻道 {cid} 活動抓取失敗: {e}")
 
-    # 3. 批量檢查影片狀態 (關鍵：加入 liveStreamingDetails)
+    # 3. 批量檢查影片狀態 (解決 50 筆上限問題)
     live_info_map = {}
     if all_video_ids:
-        print(f"📡 步驟 3: 批量解析影片狀態與預計開播時間...")
-        vid_response = youtube.videos().list(
-            part="snippet,liveStreamingDetails", # 多抓取 streaming 詳情
-            id=",".join(all_video_ids[:50])
-        )
-        vid_response = vid_response.execute()
-        quota_used += 1
-        
-        for v_item in vid_response.get("items", []):
-            vid = v_item["id"]
-            base_status = v_item["snippet"].get("liveBroadcastContent")
+        print(f"📡 步驟 3: 分段檢查 {len(all_video_ids)} 個影片的直播狀態...")
+        for i in range(0, len(all_video_ids), 50):
+            batch_vids = all_video_ids[i:i+50]
+            vid_response = youtube.videos().list(
+                part="snippet,liveStreamingDetails",
+                id=",".join(batch_vids)
+            ).execute()
+            quota_used += 1
             
-            # --- 萬年待機室檢查邏輯 ---
-            if base_status == "upcoming":
-                scheduled_str = v_item.get("liveStreamingDetails", {}).get("scheduledStartTime")
-                if scheduled_str:
-                    scheduled_time = datetime.fromisoformat(scheduled_str.replace("Z", "+00:00"))
-                    now = datetime.now(timezone.utc)
-                    diff = scheduled_time - now
-                    
-                    # 如果預計開播時間大於設定的門檻 (例如 7 天)
-                    if diff > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
-                        print(f"   💡 發現長效待機室 ({vid})，開播時間在 {diff.days} 天後，標記為 none")
-                        base_status = "none" # 降級處理
-            
-            live_info_map[vid] = base_status
+            for v_item in vid_response.get("items", []):
+                vid = v_item["id"]
+                base_status = v_item["snippet"].get("liveBroadcastContent")
+                
+                if base_status == "upcoming":
+                    scheduled_str = v_item.get("liveStreamingDetails", {}).get("scheduledStartTime")
+                    if scheduled_str:
+                        scheduled_time = datetime.fromisoformat(scheduled_str.replace("Z", "+00:00"))
+                        if (scheduled_time - datetime.now(timezone.utc)) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
+                            base_status = "none" # 長期待機室降級
+                
+                live_info_map[vid] = base_status
 
     # 4. 判定與寫入
-    print(f"💾 步驟 4: 狀態判定與資料庫存檔...")
+    print(f"💾 步驟 4: 整合數據並存入 Supabase...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
 
     for cid, data in channel_map.items():
@@ -155,12 +158,15 @@ def fetch_and_save():
                 "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
             }).execute()
         except Exception as e:
-            print(f"      ❌ 寫入失敗: {e}")
+            print(f"      ❌ {data['title']} 寫入失敗: {e}")
 
     print(f"\n📊 --- 任務總結報告 ---")
     print(f"💰 本次抓取預估花費 Quota: {quota_used} 點")
     print(f"📈 每日額度消耗佔比: {(quota_used / 10000) * 100:.2f}%")
     print(f"------------------------\n")
+
+if __name__ == "__main__":
+    fetch_and_save()
 
 if __name__ == "__main__":
     fetch_and_save()
