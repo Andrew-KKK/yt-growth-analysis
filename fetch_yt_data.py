@@ -17,11 +17,38 @@ VERSION = "2026.03.11.V12"
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
 CHANNEL_IDS = [
-    "UC7Xglp1fske9zmRe7Oj8YyA", # 範例直播待機頻道: 
-    "UCgTzsBI0DIRopMylJEDqnog", # 範例直播待機(預計直播時間過久)頻道: 
-    "UCPEKpqpHu0ojN8lJnMUGjaQ", # 範例正規直播頻道: 
-    "UCexpzYDEnfmAvPSfG4xbcjA", # 範例不間斷直播頻道: 公視新聞網
-    "UCW5O-tjdwofBwfispeMSPfw"  # 範例無直播無待機頻道: 
+# VSPO!
+    "UCyLGcqYs7RsBb3L0SJfzGYA", #花芽すみれ
+    "UCiMG6VdScBabPhJ1ZtaVmbw", #花芽なずな
+    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと / Toto Kogara
+    "UC5LyYg6cCA4yHEYvtUsir3g", # 一ノ瀬うるは
+    "UCIcAj6WkJ8vZ7DeJVgmeqKw", # 胡桃のあ
+    "UCnvVG9RbOW3J6Ifqo-zKLiw", # 兎咲ミミ / Tosaki Mimi
+    "UCF_U2GCKHvDz52jWdizppIA", # 空澄セナ -Asumi Sena-
+    "UCvUc0m317LWTTPZoBQV479A", # 橘ひなの / Hinano Tachibana
+    "UCurEA8YoqFwimJcAuSHU0MQ", # 英リサ.Hanabusa Lisa
+    "UCGWa1dMU_sDCaRQjdabsVgg", # 如月れん -Ren kisaragi-
+    "UCMp55EbT_ZlqiMS3lCj01BQ", # 神成きゅぴ / Kaminari Qpi
+    "UCjXBuHmWkieBApgBhDuJMMQ", # 八雲べに
+    "UCPkKpOHxEDcwmUAnRpIu-Ng", # 藍沢エマ / Aizawa Ema
+    "UCD5W21JqNMv_tV9nfjvF9sw", # 紫宮るな /shinomiya runa
+    "UCIjdfjcSaEgdjwbgjxC3ZWg", # 猫汰つな / Nekota Tsuna
+    "UC61OwuYOVuKkpKnid-43Twg", # 白波らむね / Shiranami Ramune
+    "UCzUNASdzI4PV5SlqtYwAkKQ", # Met Channel / 小森めと 
+    "UCS5l_Y0oMVTjEos2LuyeSZQ", # Akari ch.夢野あかり
+    "UCX4WL24YEOUYd7qDsFSLDOw", # 夜乃くろむ / Yano Kuromu
+    "UC-WX1CXssCtCtc2TNIRnJzg", # 紡木こかげ
+    "UCuDY3ibSP2MFRgf7eo3cojg", # 千燈ゆうひ
+    "UCL9hJsdk9eQa0IlWbFB2oRg", # 蝶屋はなび / Choya Hanabi
+    "UC8vKBjGY2HVfbW9GAmgikWw", # 甘結もか / Amayui Moka
+    "UC2xXx1m1jeL0W84_0jTg-Yw", # 銀城サイネ / Ginjo Saine
+    "UCoW8qQy80mKH0RJTKAK-nNA", # 龍巻ちせ / Tatsumaki Chise
+    "UCCra1t-eIlO3ULyXQQMD9Xw", # 【VACATION】 Remia Aotsuki 【VSPO! EN】
+    "UCLlJpxXt6L5d-XQ0cDdIyDQ", # Arya Kuroha 【VSPO! EN】
+    "UCeCWj-SiJG9SWN6wGORiLmw", # Jira Jisaki 【VSPO! EN】
+    "UCKSpM183c85d5V2cW5qaUjA", # Narin Mikure【VSPO! EN】
+    "UC7Xglp1fske9zmRe7Oj8YyA", # Riko Solari【VSPO! EN】
+    "UCp_3ej2br9l9L1DSoHVDZGw", # Eris Suzukami 【VSPO! EN】
 ]
 
 # --- 設定：多久以後的直播才算「萬年待機室」 (預設 7 天) ---
