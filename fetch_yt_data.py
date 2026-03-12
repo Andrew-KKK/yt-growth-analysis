@@ -89,7 +89,7 @@ def fetch_and_save():
 
     for cid in CHANNEL_IDS:
         try:
-            act_response = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=10).execute()
+            act_response = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=15).execute()
             quota_used += 1
             vids = []
             for act in act_response.get("items", []):
