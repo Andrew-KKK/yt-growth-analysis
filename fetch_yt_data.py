@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 from datetime import datetime, timezone, timedelta
 from googleapiclient.discovery import build
 from supabase import create_client, Client
@@ -11,8 +12,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V13：修復 50 筆 ID 上限問題 & 修正活動類型字串
-VERSION = "2026.03.12.V13" 
+# 版本號 V14：無縫整合 yt_videos 寫入，自動判定 Shorts/Live/Video
+VERSION = "2026.03.13.V14" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -59,13 +60,26 @@ def get_yt_client():
 def get_supabase_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def parse_duration_to_seconds(duration_str):
+    """將 YouTube 的 ISO 8601 長度格式 (如 PT1H2M10S) 轉換為秒數"""
+    if not duration_str:
+        return 0
+    match = re.match(r'^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$', duration_str)
+    if not match:
+        return 0
+    h, m, s = match.groups()
+    h = int(h) if h else 0
+    m = int(m) if m else 0
+    s = int(s) if s else 0
+    return h * 3600 + m * 60 + s
+
 def fetch_and_save():
-    print(f"🚀 [版本 {VERSION}] 啟動大規模採集任務...")
+    print(f"🚀 [版本 {VERSION}] 啟動採集任務 (含影片目錄建檔)...")
     youtube = get_yt_client()
     supabase = get_supabase_client()
     quota_used = 0
 
-    # 1. 頻道統計 (支援超過 50 個頻道的批量抓取)
+    # 1. 頻道統計
     print(f"📡 步驟 1: 抓取 {len(CHANNEL_IDS)} 個頻道的統計數據...")
     channel_map = {}
     for i in range(0, len(CHANNEL_IDS), 50):
@@ -83,7 +97,7 @@ def fetch_and_save():
             }
 
     # 2. 頻道活動深挖
-    print(f"📡 步驟 2: 解析頻道活動 (尋找 upload 與 liveBroadcast)...")
+    print(f"📡 步驟 2: 解析頻道活動...")
     all_video_ids = []
     cid_to_video_ids = {}
 
@@ -97,7 +111,7 @@ def fetch_and_save():
                 vid = None
                 if t == "upload":
                     vid = act["contentDetails"]["upload"].get("videoId")
-                elif t == "liveBroadcast": # 修正：官方正確標籤為 liveBroadcast
+                elif t == "liveBroadcast":
                     vid = act["contentDetails"]["liveBroadcast"].get("id")
                 
                 if vid and vid not in vids:
@@ -107,33 +121,60 @@ def fetch_and_save():
         except Exception as e:
             print(f"   ⚠️ 頻道 {cid} 活動抓取失敗: {e}")
 
-    # 3. 批量檢查影片狀態 (解決 50 筆上限問題)
+    # 3. 批量檢查影片狀態 & 收集影片資訊 (關鍵更新處)
     live_info_map = {}
+    video_details_list = [] # 用來暫存要寫入 yt_videos 的資料
+    
     if all_video_ids:
-        print(f"📡 步驟 3: 分段檢查 {len(all_video_ids)} 個影片的直播狀態...")
+        print(f"📡 步驟 3: 解析 {len(all_video_ids)} 個影片的狀態與類型...")
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
+            # 必須加入 contentDetails 才能拿到影片長度 (duration)
             vid_response = youtube.videos().list(
-                part="snippet,liveStreamingDetails",
+                part="snippet,liveStreamingDetails,contentDetails", 
                 id=",".join(batch_vids)
             ).execute()
             quota_used += 1
             
             for v_item in vid_response.get("items", []):
                 vid = v_item["id"]
-                base_status = v_item["snippet"].get("liveBroadcastContent")
+                snippet = v_item.get("snippet", {})
                 
+                # --- A. 處理直播狀態 ---
+                base_status = snippet.get("liveBroadcastContent")
                 if base_status == "upcoming":
                     scheduled_str = v_item.get("liveStreamingDetails", {}).get("scheduledStartTime")
                     if scheduled_str:
                         scheduled_time = datetime.fromisoformat(scheduled_str.replace("Z", "+00:00"))
                         if (scheduled_time - datetime.now(timezone.utc)) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
-                            base_status = "none" # 長期待機室降級
-                
+                            base_status = "none"
                 live_info_map[vid] = base_status
 
-    # 4. 判定與寫入
-    print(f"💾 步驟 4: 整合數據並存入 Supabase...")
+                # --- B. 處理 yt_videos 欄位判定 ---
+                v_title = snippet.get("title")
+                v_published_at = snippet.get("publishedAt")
+                v_channel_id = snippet.get("channelId")
+                
+                # 判定 video_type
+                v_type = "Video"
+                if "liveStreamingDetails" in v_item:
+                    v_type = "Live"
+                else:
+                    duration_str = v_item.get("contentDetails", {}).get("duration", "")
+                    sec = parse_duration_to_seconds(duration_str)
+                    if sec <= 61 and sec > 0: # 61秒以內判定為 Shorts
+                        v_type = "Shorts"
+                
+                video_details_list.append({
+                    "video_id": vid,
+                    "channel_id": v_channel_id,
+                    "title": v_title,
+                    "video_type": v_type,
+                    "published_at": v_published_at
+                })
+
+    # 4. 寫入 Supabase
+    print(f"💾 步驟 4: 寫入母表、快照與影片清單...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
 
     for cid, data in channel_map.items():
@@ -148,8 +189,8 @@ def fetch_and_save():
             if current_max_prio == 3: break
         
         is_live = (best_status == "live") if best_status else None
-        print(f"   📝 {data['title']} | 判定結果: {best_status if best_status else 'NULL (未知)'}")
-
+        
+        # 寫入母表 & 快照
         try:
             supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
             supabase.table("yt_stats_daily").insert({
@@ -158,9 +199,20 @@ def fetch_and_save():
                 "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
             }).execute()
         except Exception as e:
-            print(f"      ❌ {data['title']} 寫入失敗: {e}")
+            print(f"      ❌ {data['title']} 頻道資料寫入失敗: {e}")
+
+    # 寫入 yt_videos (使用 upsert 避免重複)
+    print(f"🎬 正在同步 {len(video_details_list)} 筆影片資料至 yt_videos...")
+    success_vid_count = 0
+    for v_data in video_details_list:
+        try:
+            supabase.table("yt_videos").upsert(v_data).execute()
+            success_vid_count += 1
+        except Exception as e:
+            print(f"      ❌ 影片 {v_data['video_id']} 寫入失敗: {e}")
 
     print(f"\n📊 --- 任務總結報告 ---")
+    print(f"✅ 成功更新影片清單: {success_vid_count} 筆")
     print(f"💰 本次抓取預估花費 Quota: {quota_used} 點")
     print(f"📈 每日額度消耗佔比: {(quota_used / 10000) * 100:.2f}%")
     print(f"------------------------\n")
