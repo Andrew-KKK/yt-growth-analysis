@@ -12,8 +12,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V17：新增影片的觀看、按讚、留言數抓取
-VERSION = "2026.03.13.V17" 
+# 版本號 V18：將迴響數據的預設值從 0 改為 None (NULL)，精確區分「未開放」與「零互動」
+VERSION = "2026.03.13.V18" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -164,10 +164,10 @@ def fetch_and_save():
                     if sec <= 61 and sec > 0: 
                         v_type = "Shorts"
                 
-                # [修改處] 安全地取得迴響數據 (如果被隱藏或尚未產生，預設為 0)
-                v_views = int(stats.get("viewCount", 0))
-                v_likes = int(stats.get("likeCount", 0))
-                v_comments = int(stats.get("commentCount", 0))
+                # [修改處] 安全地取得迴響數據 (區分隱藏與零互動)
+                v_views = int(stats["viewCount"]) if "viewCount" in stats else None
+                v_likes = int(stats["likeCount"]) if "likeCount" in stats else None
+                v_comments = int(stats["commentCount"]) if "commentCount" in stats else None
                 
                 video_details_list.append({
                     "video_id": vid,
