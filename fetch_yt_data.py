@@ -12,8 +12,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V14：無縫整合 yt_videos 寫入，自動判定 Shorts/Live/Video
-VERSION = "2026.03.13.V15" 
+# 版本號 V16：效能優化版，導入 Batch Upsert 解決 N+1 無效寫入問題
+VERSION = "2026.03.13.V16" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -61,7 +61,6 @@ def get_supabase_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def parse_duration_to_seconds(duration_str):
-    """將 YouTube 的 ISO 8601 長度格式 (如 PT1H2M10S) 轉換為秒數"""
     if not duration_str:
         return 0
     match = re.match(r'^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$', duration_str)
@@ -74,7 +73,7 @@ def parse_duration_to_seconds(duration_str):
     return h * 3600 + m * 60 + s
 
 def fetch_and_save():
-    print(f"🚀 [版本 {VERSION}] 啟動採集任務 (含影片目錄建檔)...")
+    print(f"🚀 [版本 {VERSION}] 啟動採集任務 (含效能優化)...")
     youtube = get_yt_client()
     supabase = get_supabase_client()
     quota_used = 0
@@ -121,15 +120,14 @@ def fetch_and_save():
         except Exception as e:
             print(f"   ⚠️ 頻道 {cid} 活動抓取失敗: {e}")
 
-    # 3. 批量檢查影片狀態 & 收集影片資訊 (關鍵更新處)
+    # 3. 批量檢查影片狀態 & 收集影片資訊
     live_info_map = {}
-    video_details_list = [] # 用來暫存要寫入 yt_videos 的資料
+    video_details_list = [] 
     
     if all_video_ids:
         print(f"📡 步驟 3: 解析 {len(all_video_ids)} 個影片的狀態與類型...")
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
-            # 必須加入 contentDetails 才能拿到影片長度 (duration)
             vid_response = youtube.videos().list(
                 part="snippet,liveStreamingDetails,contentDetails", 
                 id=",".join(batch_vids)
@@ -155,14 +153,13 @@ def fetch_and_save():
                 v_published_at = snippet.get("publishedAt")
                 v_channel_id = snippet.get("channelId")
                 
-                # 判定 video_type
                 v_type = "Video"
                 if "liveStreamingDetails" in v_item:
                     v_type = "Live"
                 else:
                     duration_str = v_item.get("contentDetails", {}).get("duration", "")
                     sec = parse_duration_to_seconds(duration_str)
-                    if sec <= 61 and sec > 0: # 61秒以內判定為 Shorts
+                    if sec <= 61 and sec > 0: 
                         v_type = "Shorts"
                 
                 video_details_list.append({
@@ -173,10 +170,11 @@ def fetch_and_save():
                     "published_at": v_published_at
                 })
 
-    # 4. 寫入 Supabase
-    print(f"💾 步驟 4: 寫入母表、快照與影片清單...")
+    # 4. 寫入 Supabase (使用 Batch 批次處理)
+    print(f"💾 步驟 4: 狀態判定與資料庫存檔...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
 
+    # 4-1. 寫入快照與母表 (此處維持迴圈，因為涉及邏輯運算)
     for cid, data in channel_map.items():
         best_status = None
         current_max_prio = -1
@@ -190,7 +188,6 @@ def fetch_and_save():
         
         is_live = (best_status == "live") if best_status else None
         
-        # 寫入母表 & 快照
         try:
             supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
             supabase.table("yt_stats_daily").insert({
@@ -201,24 +198,22 @@ def fetch_and_save():
         except Exception as e:
             print(f"      ❌ {data['title']} 頻道資料寫入失敗: {e}")
 
-    # 寫入 yt_videos (使用 upsert 避免重複)
-    print(f"🎬 正在同步 {len(video_details_list)} 筆影片資料至 yt_videos...")
-    success_vid_count = 0
-    for v_data in video_details_list:
+    # 4-2. 批次寫入影片清單 (將 100 多次請求縮減為 1 次)
+    print(f"🎬 正在準備批次同步 {len(video_details_list)} 筆影片資料...")
+    if video_details_list:
         try:
-            supabase.table("yt_videos").upsert(v_data).execute()
-            success_vid_count += 1
+            # 直接將整個 List 丟給 Supabase，它會自動發送一個 Bulk Request
+            supabase.table("yt_videos").upsert(video_details_list).execute()
+            print(f"      ✅ 成功完成單次批次寫入！")
         except Exception as e:
-            print(f"      ❌ 影片 {v_data['video_id']} 寫入失敗: {e}")
+            print(f"      ❌ 批次影片寫入失敗: {e}")
 
     print(f"\n📊 --- 任務總結報告 ---")
-    print(f"✅ 成功更新影片清單: {success_vid_count} 筆")
     print(f"💰 本次抓取預估花費 Quota: {quota_used} 點")
     print(f"📈 每日額度消耗佔比: {(quota_used / 10000) * 100:.2f}%")
-    # --- 計算並輸出時間 ---
+    
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
-    
     print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"------------------------\n")
