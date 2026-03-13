@@ -13,7 +13,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V14：無縫整合 yt_videos 寫入，自動判定 Shorts/Live/Video
-VERSION = "2026.03.13.V14" 
+VERSION = "2026.03.13.V15" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -215,6 +215,12 @@ def fetch_and_save():
     print(f"✅ 成功更新影片清單: {success_vid_count} 筆")
     print(f"💰 本次抓取預估花費 Quota: {quota_used} 點")
     print(f"📈 每日額度消耗佔比: {(quota_used / 10000) * 100:.2f}%")
+    # --- 計算並輸出時間 ---
+    utc_now = datetime.now(timezone.utc)
+    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+    
+    print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"------------------------\n")
 
 if __name__ == "__main__":
