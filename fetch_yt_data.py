@@ -12,8 +12,8 @@ YT_API_KEY = os.environ.get("YT_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V16：效能優化版，導入 Batch Upsert 解決 N+1 無效寫入問題
-VERSION = "2026.03.13.V16" 
+# 版本號 V17：新增影片的觀看、按讚、留言數抓取
+VERSION = "2026.03.13.V17" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -125,11 +125,12 @@ def fetch_and_save():
     video_details_list = [] 
     
     if all_video_ids:
-        print(f"📡 步驟 3: 解析 {len(all_video_ids)} 個影片的狀態與類型...")
+        print(f"📡 步驟 3: 解析 {len(all_video_ids)} 個影片的狀態、類型與迴響數據...")
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
+            # [修改處] 在 part 中加入 statistics
             vid_response = youtube.videos().list(
-                part="snippet,liveStreamingDetails,contentDetails", 
+                part="snippet,liveStreamingDetails,contentDetails,statistics", 
                 id=",".join(batch_vids)
             ).execute()
             quota_used += 1
@@ -137,6 +138,7 @@ def fetch_and_save():
             for v_item in vid_response.get("items", []):
                 vid = v_item["id"]
                 snippet = v_item.get("snippet", {})
+                stats = v_item.get("statistics", {}) # 取得數據區塊
                 
                 # --- A. 處理直播狀態 ---
                 base_status = snippet.get("liveBroadcastContent")
@@ -162,12 +164,20 @@ def fetch_and_save():
                     if sec <= 61 and sec > 0: 
                         v_type = "Shorts"
                 
+                # [修改處] 安全地取得迴響數據 (如果被隱藏或尚未產生，預設為 0)
+                v_views = int(stats.get("viewCount", 0))
+                v_likes = int(stats.get("likeCount", 0))
+                v_comments = int(stats.get("commentCount", 0))
+                
                 video_details_list.append({
                     "video_id": vid,
                     "channel_id": v_channel_id,
                     "title": v_title,
                     "video_type": v_type,
-                    "published_at": v_published_at
+                    "published_at": v_published_at,
+                    "view_count": v_views,
+                    "like_count": v_likes,
+                    "comment_count": v_comments
                 })
 
     # 4. 寫入 Supabase (使用 Batch 批次處理)
