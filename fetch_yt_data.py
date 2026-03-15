@@ -44,10 +44,10 @@ WAITING_ROOM_THRESHOLD_DAYS = 30
 def get_api_key_info():
     """決定當下要使用的金鑰並回傳遮蔽資訊"""
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
-        masked = f"{YT_API_KEY_2[:35]}***" if YT_API_KEY_2 else "None"
+        masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY_2 else "None"
         return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
     
-    masked = f"{YT_API_KEY[:35]}***" if YT_API_KEY else "None"
+    masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY else "None"
     return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
 
 def get_yt_client(api_key):
