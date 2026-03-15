@@ -14,8 +14,8 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V20：智慧分流架構 (30min 同接 / 3hr 全量快照)
-VERSION = "2026.03.15.V20" 
+# 版本號 V21：新增執行日誌 (金鑰識別、頻道狀態與同接輸出)
+VERSION = "2026.03.15.V21" 
 
 # 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
 # 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
@@ -56,12 +56,17 @@ CHANNEL_IDS = [
 
 WAITING_ROOM_THRESHOLD_DAYS = 30
 
-def get_yt_client():
-    # 簡單的金鑰切換邏輯：如果是偶數小時且有第二組金鑰，就用第二組（分散配額）
-    key = YT_API_KEY
+def get_api_key_info():
+    """決定當下要使用的金鑰並回傳遮蔽資訊"""
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
-        key = YT_API_KEY_2
-    return build("youtube", "v3", developerKey=key)
+        masked = f"{YT_API_KEY_2[:4]}***" if YT_API_KEY_2 else "None"
+        return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
+    
+    masked = f"{YT_API_KEY[:4]}***" if YT_API_KEY else "None"
+    return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
+
+def get_yt_client(api_key):
+    return build("youtube", "v3", developerKey=api_key)
 
 def get_supabase_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -74,19 +79,21 @@ def parse_duration_to_seconds(duration_str):
     return h * 3600 + m * 60 + s
 
 def fetch_and_save():
-    # --- A. 模式判定 ---
+    # --- A. 模式判定與金鑰設定 ---
     now_utc = datetime.now(timezone.utc)
-    # 每 3 小時執行一次全量快照 (0, 3, 6, 9...)
     is_snapshot_mode = (now_utc.hour % 3 == 0 and now_utc.minute < 30)
+    
+    api_key, key_name = get_api_key_info()
+    youtube = get_yt_client(api_key)
     
     mode_text = "【全量快照 + 同接監控】" if is_snapshot_mode else "【僅同接監控】"
     print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
+    print(f"🔑 目前使用金鑰: {key_name}")
     
-    youtube = get_yt_client()
     supabase = get_supabase_client()
     quota_used = 0
 
-    # --- B. 頻道基本資料與統計 (Snapshot 模式才抓統計) ---
+    # --- B. 頻道基本資料與統計 ---
     print(f"📡 步驟 1: 獲取頻道清單狀態 (頻道數: {len(CHANNEL_IDS)})...")
     channel_map = {}
     parts = "snippet,statistics" if is_snapshot_mode else "snippet"
@@ -106,13 +113,12 @@ def fetch_and_save():
                 "raw_stats": stats
             }
 
-    # --- C. 偵測活動 (尋找影片 ID) ---
+    # --- C. 偵測活動 ---
     print(f"📡 步驟 2: 掃描最近活動...")
     all_video_ids = []
     cid_to_video_ids = {}
     for cid in CHANNEL_IDS:
         try:
-            # 僅監控時減少抓取數量以節省時間，快照時抓較多
             max_r = 15 if is_snapshot_mode else 5
             act_res = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=max_r).execute()
             quota_used += 1
@@ -135,7 +141,6 @@ def fetch_and_save():
     
     if all_video_ids:
         print(f"📡 步驟 3: 解析 {len(all_video_ids)} 支影片的數據...")
-        # 快照模式抓全部資訊，僅監控時只抓直播相關
         vid_parts = "snippet,liveStreamingDetails,contentDetails,statistics" if is_snapshot_mode else "snippet,liveStreamingDetails"
         
         for i in range(0, len(all_video_ids), 50):
@@ -152,7 +157,6 @@ def fetch_and_save():
                 ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
                 actual_start = lsd.get("actualStartTime")
                 
-                # 待機室過濾
                 if status == "upcoming":
                     sch = lsd.get("scheduledStartTime")
                     if sch:
@@ -162,7 +166,6 @@ def fetch_and_save():
                 
                 live_info_map[vid] = {"status": status, "ccv": ccv, "start": actual_start}
 
-                # 如果是直播中，準備存入 yt_live_logs
                 if status == "live" and ccv is not None:
                     live_logs_to_insert.append({
                         "channel_id": snippet.get("channelId"),
@@ -171,7 +174,6 @@ def fetch_and_save():
                         "captured_at": now_utc.isoformat()
                     })
 
-                # 快照模式下準備更新影片目錄
                 if is_snapshot_mode:
                     stats = v_item.get("statistics", {})
                     v_type = "Live" if "liveStreamingDetails" in v_item else "Shorts" if parse_duration_to_seconds(v_item.get("contentDetails", {}).get("duration", "")) <= 61 else "Video"
@@ -183,11 +185,10 @@ def fetch_and_save():
                         "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None
                     })
 
-    # --- E. 寫入資料庫 ---
-    print(f"💾 步驟 4: 執行資料庫存檔...")
+    # --- E. 寫入資料庫與終端機日誌輸出 ---
+    print(f"💾 步驟 4: 執行資料庫存檔與狀態報告...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
     
-    # 4-1. 處理頻道狀態與全量快照
     for cid, data in channel_map.items():
         best_vid = None
         current_max_prio = -1
@@ -201,19 +202,24 @@ def fetch_and_save():
         
         final_info = live_info_map.get(best_vid, {})
         best_status = final_info.get("status", "none")
+        ccv_val = final_info.get("ccv")
         
-        # 永遠更新母表 (保持名稱最新)
+        # [新增] 格式化輸出狀態日誌
+        log_msg = f"   📝 {data['title']} | 判定結果: {best_status}"
+        if best_status == "live" and ccv_val is not None:
+            log_msg += f" (同接: {ccv_val} 人)"
+        print(log_msg)
+        
         try:
             supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
         except: pass
 
-        # 快照模式才寫入 yt_stats_daily
         if is_snapshot_mode:
             try:
                 supabase.table("yt_stats_daily").insert({
                     "channel_id": cid, "subscriber_count": data["subs"], "total_views": data["views"],
                     "is_live": (best_status == "live"), "live_status": best_status,
-                    "concurrent_viewers": final_info.get("ccv") if best_status == "live" else None,
+                    "concurrent_viewers": ccv_val if best_status == "live" else None,
                     "actual_start_time": final_info.get("start"),
                     "check_time": now_utc.isoformat(),
                     "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
@@ -221,24 +227,24 @@ def fetch_and_save():
             except Exception as e:
                 print(f"      ❌ {data['title']} 快照寫入失敗: {e}")
 
-    # 4-2. 批次寫入影片資料 (僅快照模式)
     if is_snapshot_mode and video_details_list:
         print(f"🎬 批次更新影片清單 ({len(video_details_list)} 筆)...")
         try: supabase.table("yt_videos").upsert(video_details_list).execute()
         except: pass
 
-    # 4-3. 批次寫入同接日誌 (不論什麼模式，只要有人直播就存)
     if live_logs_to_insert:
         print(f"📈 記錄即時同接數據 ({len(live_logs_to_insert)} 筆)...")
         try: supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
         except: pass
 
     # --- F. 總結報告 ---
-    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
+    utc_now = datetime.now(timezone.utc)
+    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
     print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
     print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
     print(f"💰 本次消耗 Quota: {quota_used} | 每日配額佔比: {(quota_used / 10000) * 100:.2f}%")
-    print(f"🇹🇼 台灣時間: {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"------------------------\n")
 
 if __name__ == "__main__":
