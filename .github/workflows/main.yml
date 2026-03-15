@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run fetch script
+      - name: Run fetch script and print logs
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           YT_API_KEY_2: ${{ secrets.YT_API_KEY_2 }} # 老闆如果有第二組 Key 請加到 Secrets
