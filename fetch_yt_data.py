@@ -15,54 +15,39 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V21：新增執行日誌 (金鑰識別、頻道狀態與同接輸出)
-VERSION = "2026.03.15.V21" 
+VERSION = "2026.03.15.V22" 
 
-# 2. 定義要監控的頻道 ID (老闆請在這裡換成你想追蹤的頻道)
-# 你可以在 YouTube 頻道網址找到這些 ID (例如 UC... 開頭的字串)
-CHANNEL_IDS = [
-# VSPO!
-    "UCyLGcqYs7RsBb3L0SJfzGYA", #花芽すみれ
-    "UCiMG6VdScBabPhJ1ZtaVmbw", #花芽なずな
-    "UCgTzsBI0DIRopMylJEDqnog", # 小雀とと / Toto Kogara
-    "UC5LyYg6cCA4yHEYvtUsir3g", # 一ノ瀬うるは
-    "UCIcAj6WkJ8vZ7DeJVgmeqKw", # 胡桃のあ
-    "UCnvVG9RbOW3J6Ifqo-zKLiw", # 兎咲ミミ / Tosaki Mimi
-    "UCF_U2GCKHvDz52jWdizppIA", # 空澄セナ -Asumi Sena-
-    "UCvUc0m317LWTTPZoBQV479A", # 橘ひなの / Hinano Tachibana
-    "UCurEA8YoqFwimJcAuSHU0MQ", # 英リサ.Hanabusa Lisa
-    "UCGWa1dMU_sDCaRQjdabsVgg", # 如月れん -Ren kisaragi-
-    "UCMp55EbT_ZlqiMS3lCj01BQ", # 神成きゅぴ / Kaminari Qpi
-    "UCjXBuHmWkieBApgBhDuJMMQ", # 八雲べに
-    "UCPkKpOHxEDcwmUAnRpIu-Ng", # 藍沢エマ / Aizawa Ema
-    "UCD5W21JqNMv_tV9nfjvF9sw", # 紫宮るな /shinomiya runa
-    "UCIjdfjcSaEgdjwbgjxC3ZWg", # 猫汰つな / Nekota Tsuna
-    "UC61OwuYOVuKkpKnid-43Twg", # 白波らむね / Shiranami Ramune
-    "UCzUNASdzI4PV5SlqtYwAkKQ", # Met Channel / 小森めと 
-    "UCS5l_Y0oMVTjEos2LuyeSZQ", # Akari ch.夢野あかり
-    "UCX4WL24YEOUYd7qDsFSLDOw", # 夜乃くろむ / Yano Kuromu
-    "UC-WX1CXssCtCtc2TNIRnJzg", # 紡木こかげ
-    "UCuDY3ibSP2MFRgf7eo3cojg", # 千燈ゆうひ
-    "UCL9hJsdk9eQa0IlWbFB2oRg", # 蝶屋はなび / Choya Hanabi
-    "UC8vKBjGY2HVfbW9GAmgikWw", # 甘結もか / Amayui Moka
-    "UC2xXx1m1jeL0W84_0jTg-Yw", # 銀城サイネ / Ginjo Saine
-    "UCoW8qQy80mKH0RJTKAK-nNA", # 龍巻ちせ / Tatsumaki Chise
-    "UCCra1t-eIlO3ULyXQQMD9Xw", # 【VACATION】 Remia Aotsuki 【VSPO! EN】
-    "UCLlJpxXt6L5d-XQ0cDdIyDQ", # Arya Kuroha 【VSPO! EN】
-    "UCeCWj-SiJG9SWN6wGORiLmw", # Jira Jisaki 【VSPO! EN】
-    "UCKSpM183c85d5V2cW5qaUjA", # Narin Mikure【VSPO! EN】
-    "UC7Xglp1fske9zmRe7Oj8YyA", # Riko Solari【VSPO! EN】
-    "UCp_3ej2br9l9L1DSoHVDZGw", # Eris Suzukami 【VSPO! EN】
-]
+# [修改處] 移除寫死的 CHANNEL_IDS 陣列，改為動態讀取函數
+def load_channel_ids(filename="channels.txt"):
+    """從外部純文字檔讀取頻道 ID 清單"""
+    ids = []
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # 忽略空行或整行都是註解的狀況
+                if not line or line.startswith('#'):
+                    continue
+                # 處理行內註解，例如 "UC123456 # 這是某頻道" -> 提取 "UC123456"
+                actual_id = line.split('#')[0].strip()
+                # 防呆：移除可能被不小心貼上的單雙引號或逗號
+                actual_id = actual_id.replace('"', '').replace("'", "").replace(',', '')
+                if actual_id and actual_id not in ids:
+                    ids.append(actual_id)
+        return ids
+    except FileNotFoundError:
+        print(f"❌ 嚴重錯誤：找不到 {filename}！請確保該檔案存在於儲存庫中。")
+        sys.exit(1)
 
 WAITING_ROOM_THRESHOLD_DAYS = 30
 
 def get_api_key_info():
     """決定當下要使用的金鑰並回傳遮蔽資訊"""
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
-        masked = f"{YT_API_KEY_2[3:]}***" if YT_API_KEY_2 else "None"
+        masked = f"{YT_API_KEY_2[:35]}***" if YT_API_KEY_2 else "None"
         return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
     
-    masked = f"{YT_API_KEY[3:]}***" if YT_API_KEY else "None"
+    masked = f"{YT_API_KEY[:35]}***" if YT_API_KEY else "None"
     return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
 
 def get_yt_client(api_key):
@@ -90,16 +75,22 @@ def fetch_and_save():
     print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
     print(f"🔑 目前使用金鑰: {key_name}")
     
+    # [新增處] 動態載入頻道清單
+    channel_ids = load_channel_ids("channels.txt")
+    if not channel_ids:
+        print("❌ 警告：頻道清單為空，請檢查 channels.txt 內容。")
+        return
+
     supabase = get_supabase_client()
     quota_used = 0
 
     # --- B. 頻道基本資料與統計 ---
-    print(f"📡 步驟 1: 獲取頻道清單狀態 (頻道數: {len(CHANNEL_IDS)})...")
+    print(f"📡 步驟 1: 獲取頻道清單狀態 (頻道數: {len(channel_ids)})...")
     channel_map = {}
     parts = "snippet,statistics" if is_snapshot_mode else "snippet"
     
-    for i in range(0, len(CHANNEL_IDS), 50):
-        batch = CHANNEL_IDS[i:i+50]
+    for i in range(0, len(channel_ids), 50):
+        batch = channel_ids[i:i+50]
         ch_res = youtube.channels().list(part=parts, id=",".join(batch)).execute()
         quota_used += 1
         for item in ch_res.get("items", []):
@@ -117,7 +108,7 @@ def fetch_and_save():
     print(f"📡 步驟 2: 掃描最近活動...")
     all_video_ids = []
     cid_to_video_ids = {}
-    for cid in CHANNEL_IDS:
+    for cid in channel_ids:
         try:
             max_r = 15 if is_snapshot_mode else 5
             act_res = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=max_r).execute()
