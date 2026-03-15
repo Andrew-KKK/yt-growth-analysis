@@ -1,5 +1,6 @@
 #VSPO! count: 33
 UCuI5XaO-6VkOEhHao6ij7JA # ぶいすぽっ!【公式】
+
 UCyLGcqYs7RsBb3L0SJfzGYA #花芽すみれ
 UCiMG6VdScBabPhJ1ZtaVmbw #花芽なずな
 UCgTzsBI0DIRopMylJEDqnog # 小雀とと / Toto Kogara
@@ -35,6 +36,7 @@ UCp_3ej2br9l9L1DSoHVDZGw # Eris Suzukami 【VSPO! EN】
 
 # 子午計畫 count: 16, total: 49
 UCcyTlQ92NIJ4fYR45OFpFQQ # MeridianProject子午計畫
+
 UCs5FNYPHeZz5f7N1BDExxfg # 玖玖巴
 UCtTU6L8VDMdz0E62TxHbIZg # KSP
 UCjv4bfP_67WLuPheS-Z8Ekg # 浠Mizuki Channel
@@ -51,7 +53,14 @@ UC6NXFJInhUYGdKeFHhPrtpA # 幸Sachi Channel
 UCyO8Nae_zF-OpxtbL01Dwow # 煦Hiyori Channel
 UC2mtxQezpgWjqMXF6WkuMiw # 実Hitomi Channel
 
-# hololive count: 30, total: 79
+# hololive count: 36, total: 85
+UC10wVt6hoQiwySRhz7RdOUA # hololive DEV_IS ReGLOSS
+UCu2n3qHuOuQIygREMnWeQWg # hololive DEV_IS FLOW GLOW
+UCJFZiqLMntJufDCHc6bQixg # hololive ホロライブ - VTuber Group
+UCfrWoRGlawPQDQxxeIDRP0Q # hololive Indonesia
+UCotXwY6s8pWmuWd_snKYjhg # hololive English
+UCWsfcksUUpoEvhia0_ut0bA # holostars ホロスターズ - VTuber Group
+
 UCANDOlYTJT7N5jlRC3zfzVA # Roberu Ch. 夕刻ロベル
 UCGNI4MENvnsymYjKiZwv9eg # Temma Ch. 岸堂天真
 UCwL7dgTxKo8Y4RFIKWaf8gA # Oga Ch.荒咬オウガ
