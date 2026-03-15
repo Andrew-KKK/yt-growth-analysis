@@ -14,10 +14,9 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V21：新增執行日誌 (金鑰識別、頻道狀態與同接輸出)
-VERSION = "2026.03.15.V22" 
+# 版本號 V23：修復同接日誌的外鍵衝突，並強化例外處理輸出
+VERSION = "2026.03.15.V23"
 
-# [修改處] 移除寫死的 CHANNEL_IDS 陣列，改為動態讀取函數
 def load_channel_ids(filename="channels.txt"):
     """從外部純文字檔讀取頻道 ID 清單"""
     ids = []
@@ -25,12 +24,8 @@ def load_channel_ids(filename="channels.txt"):
         with open(filename, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()
-                # 忽略空行或整行都是註解的狀況
-                if not line or line.startswith('#'):
-                    continue
-                # 處理行內註解，例如 "UC123456 # 這是某頻道" -> 提取 "UC123456"
+                if not line or line.startswith('#'): continue
                 actual_id = line.split('#')[0].strip()
-                # 防呆：移除可能被不小心貼上的單雙引號或逗號
                 actual_id = actual_id.replace('"', '').replace("'", "").replace(',', '')
                 if actual_id and actual_id not in ids:
                     ids.append(actual_id)
@@ -44,10 +39,10 @@ WAITING_ROOM_THRESHOLD_DAYS = 30
 def get_api_key_info():
     """決定當下要使用的金鑰並回傳遮蔽資訊"""
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
-        masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY_2 else "None"
+        masked = f"{YT_API_KEY_2[:4]}***" if YT_API_KEY_2 else "None"
         return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
     
-    masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY else "None"
+    masked = f"{YT_API_KEY[:4]}***" if YT_API_KEY else "None"
     return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
 
 def get_yt_client(api_key):
@@ -75,7 +70,6 @@ def fetch_and_save():
     print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
     print(f"🔑 目前使用金鑰: {key_name}")
     
-    # [新增處] 動態載入頻道清單
     channel_ids = load_channel_ids("channels.txt")
     if not channel_ids:
         print("❌ 警告：頻道清單為空，請檢查 channels.txt 內容。")
@@ -91,18 +85,21 @@ def fetch_and_save():
     
     for i in range(0, len(channel_ids), 50):
         batch = channel_ids[i:i+50]
-        ch_res = youtube.channels().list(part=parts, id=",".join(batch)).execute()
-        quota_used += 1
-        for item in ch_res.get("items", []):
-            stats = item.get("statistics", {})
-            channel_map[item["id"]] = {
-                "title": item["snippet"].get("title"),
-                "custom_url": item["snippet"].get("customUrl"),
-                "subs": int(stats.get("subscriberCount", 0)) if is_snapshot_mode else None,
-                "views": int(stats.get("viewCount", 0)) if is_snapshot_mode else None,
-                "raw_snippet": item["snippet"],
-                "raw_stats": stats
-            }
+        try:
+            ch_res = youtube.channels().list(part=parts, id=",".join(batch)).execute()
+            quota_used += 1
+            for item in ch_res.get("items", []):
+                stats = item.get("statistics", {})
+                channel_map[item["id"]] = {
+                    "title": item["snippet"].get("title"),
+                    "custom_url": item["snippet"].get("customUrl"),
+                    "subs": int(stats.get("subscriberCount", 0)) if is_snapshot_mode else None,
+                    "views": int(stats.get("viewCount", 0)) if is_snapshot_mode else None,
+                    "raw_snippet": item["snippet"],
+                    "raw_stats": stats
+                }
+        except Exception as e:
+            print(f"   ❌ 獲取頻道資料失敗: {e}")
 
     # --- C. 偵測活動 ---
     print(f"📡 步驟 2: 掃描最近活動...")
@@ -123,7 +120,8 @@ def fetch_and_save():
                     vids.append(vid)
                     if vid not in all_video_ids: all_video_ids.append(vid)
             cid_to_video_ids[cid] = vids
-        except: pass
+        except Exception as e:
+            pass # 單一頻道活動抓取失敗可忽略，避免洗版
 
     # --- D. 批量解析影片狀態與同接 ---
     live_info_map = {}
@@ -132,41 +130,43 @@ def fetch_and_save():
     
     if all_video_ids:
         print(f"📡 步驟 3: 解析 {len(all_video_ids)} 支影片的數據...")
-        vid_parts = "snippet,liveStreamingDetails,contentDetails,statistics" if is_snapshot_mode else "snippet,liveStreamingDetails"
+        # [關鍵修正] 不論模式為何，都抓取完整數據，確保外鍵存在且最新
+        vid_parts = "snippet,liveStreamingDetails,contentDetails,statistics"
         
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
-            vid_res = youtube.videos().list(part=vid_parts, id=",".join(batch_vids)).execute()
-            quota_used += 1
-            
-            for v_item in vid_res.get("items", []):
-                vid = v_item["id"]
-                snippet = v_item.get("snippet", {})
-                lsd = v_item.get("liveStreamingDetails", {})
+            try:
+                vid_res = youtube.videos().list(part=vid_parts, id=",".join(batch_vids)).execute()
+                quota_used += 1
                 
-                status = snippet.get("liveBroadcastContent")
-                ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
-                actual_start = lsd.get("actualStartTime")
-                
-                if status == "upcoming":
-                    sch = lsd.get("scheduledStartTime")
-                    if sch:
-                        sch_time = datetime.fromisoformat(sch.replace("Z", "+00:00"))
-                        if (sch_time - now_utc) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
-                            status = "none"
-                
-                live_info_map[vid] = {"status": status, "ccv": ccv, "start": actual_start}
-
-                if status == "live" and ccv is not None:
-                    live_logs_to_insert.append({
-                        "channel_id": snippet.get("channelId"),
-                        "video_id": vid,
-                        "ccv": ccv,
-                        "captured_at": now_utc.isoformat()
-                    })
-
-                if is_snapshot_mode:
+                for v_item in vid_res.get("items", []):
+                    vid = v_item["id"]
+                    snippet = v_item.get("snippet", {})
+                    lsd = v_item.get("liveStreamingDetails", {})
                     stats = v_item.get("statistics", {})
+                    
+                    status = snippet.get("liveBroadcastContent")
+                    ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
+                    actual_start = lsd.get("actualStartTime")
+                    
+                    if status == "upcoming":
+                        sch = lsd.get("scheduledStartTime")
+                        if sch:
+                            sch_time = datetime.fromisoformat(sch.replace("Z", "+00:00"))
+                            if (sch_time - now_utc) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
+                                status = "none"
+                    
+                    live_info_map[vid] = {"status": status, "ccv": ccv, "start": actual_start}
+
+                    if status == "live" and ccv is not None:
+                        live_logs_to_insert.append({
+                            "channel_id": snippet.get("channelId"),
+                            "video_id": vid,
+                            "ccv": ccv,
+                            "captured_at": now_utc.isoformat()
+                        })
+
+                    # [關鍵修正] 取消 is_snapshot_mode 的限制，永遠更新最新 5 支影片的數據與基礎資料
                     v_type = "Live" if "liveStreamingDetails" in v_item else "Shorts" if parse_duration_to_seconds(v_item.get("contentDetails", {}).get("duration", "")) <= 61 else "Video"
                     video_details_list.append({
                         "video_id": vid, "channel_id": snippet.get("channelId"), "title": snippet.get("title"),
@@ -175,6 +175,8 @@ def fetch_and_save():
                         "like_count": int(stats["likeCount"]) if "likeCount" in stats else None,
                         "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None
                     })
+            except Exception as e:
+                print(f"   ❌ 影片數據解析失敗: {e}")
 
     # --- E. 寫入資料庫與終端機日誌輸出 ---
     print(f"💾 步驟 4: 執行資料庫存檔與狀態報告...")
@@ -195,7 +197,6 @@ def fetch_and_save():
         best_status = final_info.get("status", "none")
         ccv_val = final_info.get("ccv")
         
-        # [新增] 格式化輸出狀態日誌
         log_msg = f"   📝 {data['title']} | 判定結果: {best_status}"
         if best_status == "live" and ccv_val is not None:
             log_msg += f" (同接: {ccv_val} 人)"
@@ -203,7 +204,8 @@ def fetch_and_save():
         
         try:
             supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
-        except: pass
+        except Exception as e:
+            print(f"      ❌ 頻道母表更新失敗: {e}")
 
         if is_snapshot_mode:
             try:
@@ -216,17 +218,22 @@ def fetch_and_save():
                     "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
                 }).execute()
             except Exception as e:
-                print(f"      ❌ {data['title']} 快照寫入失敗: {e}")
+                print(f"      ❌ 快照寫入失敗: {e}")
 
-    if is_snapshot_mode and video_details_list:
+    # [關鍵修正] 取消 is_snapshot_mode 限制，確保先寫入母表
+    if video_details_list:
         print(f"🎬 批次更新影片清單 ({len(video_details_list)} 筆)...")
-        try: supabase.table("yt_videos").upsert(video_details_list).execute()
-        except: pass
+        try: 
+            supabase.table("yt_videos").upsert(video_details_list).execute()
+        except Exception as e: 
+            print(f"      ❌ 影片清單寫入失敗: {e}")
 
     if live_logs_to_insert:
         print(f"📈 記錄即時同接數據 ({len(live_logs_to_insert)} 筆)...")
-        try: supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
-        except: pass
+        try: 
+            supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
+        except Exception as e: 
+            print(f"      ❌ 同接數據寫入失敗: {e}")
 
     # --- F. 總結報告 ---
     utc_now = datetime.now(timezone.utc)
@@ -236,7 +243,6 @@ def fetch_and_save():
     print(f"💰 本次消耗 Quota: {quota_used} | 每日配額佔比: {(quota_used / 10000) * 100:.2f}%")
     print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"------------------------\n")
 
 if __name__ == "__main__":
     fetch_and_save()
