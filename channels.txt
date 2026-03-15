@@ -1,4 +1,4 @@
-#VSPO!
+#VSPO! count: 33
 UCuI5XaO-6VkOEhHao6ij7JA # ぶいすぽっ!【公式】
 UCyLGcqYs7RsBb3L0SJfzGYA #花芽すみれ
 UCiMG6VdScBabPhJ1ZtaVmbw #花芽なずな
@@ -32,7 +32,8 @@ UCeCWj-SiJG9SWN6wGORiLmw # Jira Jisaki 【VSPO! EN】
 UCKSpM183c85d5V2cW5qaUjA # Narin Mikure【VSPO! EN】
 UC7Xglp1fske9zmRe7Oj8YyA # Riko Solari【VSPO! EN】
 UCp_3ej2br9l9L1DSoHVDZGw # Eris Suzukami 【VSPO! EN】
-# 子午計畫
+
+# 子午計畫 count: 16, total: 49
 UCcyTlQ92NIJ4fYR45OFpFQQ # MeridianProject子午計畫
 UCs5FNYPHeZz5f7N1BDExxfg # 玖玖巴
 UCtTU6L8VDMdz0E62TxHbIZg # KSP
@@ -49,3 +50,37 @@ UC8zQumEzXBpWSmbHmr8wMKw # 雪Koyuki Channel
 UC6NXFJInhUYGdKeFHhPrtpA # 幸Sachi Channel
 UCyO8Nae_zF-OpxtbL01Dwow # 煦Hiyori Channel
 UC2mtxQezpgWjqMXF6WkuMiw # 実Hitomi Channel
+
+# hololive count: 30, total: 79
+UCANDOlYTJT7N5jlRC3zfzVA # Roberu Ch. 夕刻ロベル
+UCGNI4MENvnsymYjKiZwv9eg # Temma Ch. 岸堂天真
+UCwL7dgTxKo8Y4RFIKWaf8gA # Oga Ch.荒咬オウガ
+UCc88OV45ICgHbn3ZqLLb52w # Fuma Ch. 夜十神封魔 - UPROAR!! -
+UCyxtGMdWlURZ30WSnEjDOQw # Regis Altare Ch. HOLOSTARS-EN
+UCHP4f7G2dWD4qib7BMatGAw # Gavis Bettel Ch. HOLOSTARS-EN
+UCLk1hcmxg8rJ3Nm1_GvxTRA # Octavio Ch. HOLOSTARS-EN
+UCp6993wxpyDPHUpavwDFqgg # SoraCh. ときのそらチャンネル
+UC5CwaMl1eIgY8h02uZw7u8A # Suisei Channel
+UC0TXe_LYZ4scaW2XMyi5_kw # AZKi Channel
+UCdn5BQ06XqgXoAxIhbqw5Rg # フブキCh。白上フブキ
+UC7fk0CB07ly8oSl0aqKkqFg # Nakiri Ayame Ch. 百鬼あやめ
+UCvaTdHTWBGv3MKj3KVqJVCw # Okayu Ch. 猫又おかゆ
+UC1DCedRgGHBdm81E1llLhOQ # Pekora Ch. 兎田ぺこら
+UCCzUftO8KOVkV4wQG1vkUvg # Marine Ch. 宝鐘マリン
+UC1uv2Oq6kNxgATlCiez59hw # Towa Ch. 常闇トワ
+UCUKD-uaobj9jiqB-VXt71mA # Botan Ch.獅白ぼたん
+UC6eWCld0KwmyHFbAqK3V-Rw # Koyori ch. 博衣こより - holoX -
+UCP0BspO_AMEe3aQqqpo89Dg # Moona Hoshinova hololive-ID
+UC727SQYUvx5pDDGQpTICNWg # Anya Melfissa Ch. hololive-ID
+UCjLEmnpCNeisMxy134KPwWw # Kobo Kanaeru Ch. hololive-ID
+UCL_qhgtOy0dy1Agp8vkySQg # Mori Calliope Ch. hololive-EN
+UCMwGHR0BTZuLsmjY_NT5Pwg # Ninomae Ina'nis Ch. hololive-EN
+UCgmPnx-EEeOrZSg5Tiw7ZRQ # Hakos Baelz Ch. hololive-EN
+UC_sFNM0z0MWm9A6WlKPuMMg # Nerissa Ravencroft Ch. hololive-EN
+UCt9H_RpQzhxzlyBxFqrdHqA # FUWAMOCO Ch. hololive-EN
+UCvN5h1ShZtc7nly3pezRayg # Cecilia Immergreen Ch. hololive-EN
+UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
+UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
+UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
+# nijisanji count: 約30,
+# 其他 count: 約30
