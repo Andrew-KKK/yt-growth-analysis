@@ -251,11 +251,13 @@ def fetch_and_save():
             print(f"      ❌ 同接數據寫入失敗: {e}")
 
     # --- F. 總結報告 ---
-    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
+    utc_now = datetime.now(timezone.utc)
+    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
     print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
     print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
     print(f"💰 本次消耗 Quota: {quota_used} | 每日配額佔比: {(quota_used / 10000) * 100:.2f}%")
-    print(f"🇹🇼 台灣時間: {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"------------------------\n")
 
 if __name__ == "__main__":
