@@ -91,6 +91,41 @@ UCvN5h1ShZtc7nly3pezRayg # Cecilia Immergreen Ch. hololive-EN
 UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
 UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
+
 # nijisanji count: 約30,
+#官方頻道們
+
+UCSFCh5NL4qXrAy9u-u2lX3g # Kuzuha Channel
+UC9V3Y3_uzU5e-usObb6IE1w # 星川サラ / Sara Hoshikawa
+UCZ1xuCK1kNmn5RzPYIZop3w # リゼ・ヘルエスタ -Lize Helesta-
+UCdpUojq0KWZCN9bxXnZwz5w # アルス・アルマル -ars almal- 【にじさんじ】
+UCt5-0i4AVHXaWJrL8Wql3mw # 緑仙 / Ryushen
+UCo2N7C-Z91waaR6lF3LL_jw # 甲斐田 晴 / Kaida Haru【にじさんじ】
+UCL_O_HXgLJx3Auteer0n0pA # 周央 サンゴ / Suo Sango【にじさんじ】
+UC1zFJrfEKvCixhsjNSb1toQ # シスター・クレア -SisterClaire-
+UC9EjSJ8pvxtvPdxLOElv73w # 魔界ノりりむ
+UCXW4MqCQn-jCaxlX-nn-BYg # 長尾 景 / Nagao Kei【にじさんじ】
+UCu-J8uIXuLZh16gG-cT1naw # Finana Ryugu 【NIJISANJI EN】
+UCuvk5PilcvDECU7dDZhQiEw # 白雪 巴/Shirayuki Tomoe
+UCHBhnG2G-qN0JrrWmMO2FTA # シェリン・バーガンディ -Shellin Burgundy- 【にじさんじ】
+UCivwPlOp0ojnMPZj5pNOPPA # ソフィア・ヴァレンタイン / Sophia Valentine【にじさんじ】
+UCtnO2N4kPTXmyvedjGWdx3Q # レヴィ・エリファ-Levi Elipha-
+UCWRPqA0ehhWV4Hnp27PJCkQ # 獅子堂 あかり / Shishido Akari【にじさんじ】
+UCerkculBD7YLc_vOGrF7tKg # 魔使マオ -matsukai mao-
+UC2OacIzd2UxGHRGhdHl1Rhw # 早瀬 走 / Hayase Sou【にじさんじ所属】
+UCWz0CSYCxf4MhRKPDm220AQ # 神田笑一 / Kanda Shoichi【 にじさんじ 】
+UCcx3crxPFi006DUhb_YU-tw # 北見遊征 / Kitami Yusei【にじさんじ】
+UCpjypWF_wNRs9_TrjjWngpQ # 渚トラウト / Nagisa Trout【にじさんじ】
+UCRWOdwLRsenx2jLaiCAIU4A # 雨森小夜
+UC_82HBGtvwN1hcGeOGHzUBQ # 空星きらめ/Sorahoshi Kirame【にじさんじ】
+UCmUjjW5zF1MMOhYUwwwQv9Q # 宇志海いちご
+UCw-kTlPnZYSHhlGMFJ17Znw # 雲母たまこ / Kirara Tamako【にじさんじ】
+UCvmppcdYf4HOv-tFQhHHJMA # 《にじさんじ所属の女神》モイラ
+UCiSRx1a2k-0tOg-fs6gAolQ # 飛鳥ひな【にじさんじ所属】
+UCQYwIUCLqFoin7lHKmePjJw # Klara Charmwood 【NIJISANJI EN】
+UCyRkQSuhJILuGOuXk10voPg # Layla Alstroemeria【NIJISANJI / にじさんじ】
+UClS6k3w1sPwlVFqK3-yID5A # ハリ / Ryu Hari 【にじさんじ】
+
+
 # 其他 count: 約30
 # (青桐, 深淵組, 春魚, 個人勢實況主, himehina, 長瀬有花 (https://www.youtube.com/channel/UCf-PcSHzYAtfcoiBr5C9DZA), neo-porte, uniraid, 棗いつき(https://www.youtube.com/@itsukinatsume) ...)
