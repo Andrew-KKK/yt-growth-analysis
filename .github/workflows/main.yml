@@ -1,10 +1,10 @@
-name: YouTube Snapshot & Live Tracking
+name: YouTube Daily Snapshot
 
 on:
   schedule:
-    # 每 30 分鐘執行一次 (整點與 30 分)
-    - cron: '0,30 * * * *'
-  workflow_dispatch:
+    # 宣告為每 30 分鐘執行一次 (註：實際受 GitHub 伺服器負載影響，可能為 30~60 分鐘)
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # 保留手動按鈕，方便隨時測試
 
 jobs:
   run-fetcher:
@@ -21,10 +21,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run fetch script and print logs
+      - name: Run fetch script
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          YT_API_KEY_2: ${{ secrets.YT_API_KEY_2 }} # 老闆如果有第二組 Key 請加到 Secrets
+          YT_API_KEY_2: ${{ secrets.YT_API_KEY_2 }} # 第二組 Key
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python fetch_yt_data.py
