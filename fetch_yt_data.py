@@ -14,8 +14,8 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V23：修復同接日誌的外鍵衝突，並強化例外處理輸出
-VERSION = "2026.03.15.V23"
+# 版本號 V24：修復Cron Throttling 導致的一系列問題
+VERSION = "2026.03.15.V24" 
 
 def load_channel_ids(filename="channels.txt"):
     """從外部純文字檔讀取頻道 ID 清單"""
@@ -61,13 +61,29 @@ def parse_duration_to_seconds(duration_str):
 def fetch_and_save():
     # --- A. 模式判定與金鑰設定 ---
     now_utc = datetime.now(timezone.utc)
-    is_snapshot_mode = (now_utc.hour % 3 == 0 and now_utc.minute < 30)
+    supabase = get_supabase_client()
+    
+    # [修改] 捨棄脆弱的時間字串比對，改用資料庫真實紀錄判斷 (免疫 GitHub 延遲)
+    is_snapshot_mode = False
+    try:
+        res = supabase.table("yt_stats_daily").select("check_time").order("check_time", desc=True).limit(1).execute()
+        if res.data and "check_time" in res.data[0]:
+            last_check = datetime.fromisoformat(res.data[0]["check_time"].replace("Z", "+00:00"))
+            time_diff = now_utc - last_check
+            # 如果距離上次快照超過 2 小時 45 分鐘，就啟動全量快照 (留 15 分鐘緩衝)
+            if time_diff >= timedelta(hours=2, minutes=45):
+                is_snapshot_mode = True
+        else:
+            is_snapshot_mode = True # 如果資料庫是空的，強制跑第一次快照
+    except Exception as e:
+        print(f"⚠️ 無法查詢上次快照時間 ({e})，安全起見執行全量快照。")
+        is_snapshot_mode = True
     
     api_key, key_name = get_api_key_info()
     youtube = get_yt_client(api_key)
     
     mode_text = "【全量快照 + 同接監控】" if is_snapshot_mode else "【僅同接監控】"
-    print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
+    print(f"🚀 [版本 2026.03.16.V24] 啟動{mode_text}任務...")
     print(f"🔑 目前使用金鑰: {key_name}")
     
     channel_ids = load_channel_ids("channels.txt")
@@ -75,7 +91,6 @@ def fetch_and_save():
         print("❌ 警告：頻道清單為空，請檢查 channels.txt 內容。")
         return
 
-    supabase = get_supabase_client()
     quota_used = 0
 
     # --- B. 頻道基本資料與統計 ---
@@ -236,13 +251,12 @@ def fetch_and_save():
             print(f"      ❌ 同接數據寫入失敗: {e}")
 
     # --- F. 總結報告 ---
-    utc_now = datetime.now(timezone.utc)
-    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
     print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
     print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
     print(f"💰 本次消耗 Quota: {quota_used} | 每日配額佔比: {(quota_used / 10000) * 100:.2f}%")
-    print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🇹🇼 台灣時間: {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"------------------------\n")
 
 if __name__ == "__main__":
     fetch_and_save()
