@@ -92,7 +92,7 @@ UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
 UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
 
-# nijisanji count: 約36,
+# nijisanji count: 36, total: 121
 #官方頻道們
 UC-JSeFfovhNsEhftt1WHMvg # NIJISANJI EN Official
 UCX7YkU9nEeaoZbkVLVajcMg # にじさんじ
