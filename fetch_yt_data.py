@@ -14,8 +14,12 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V24：修復Cron Throttling 導致的一系列問題
-VERSION = "2026.03.15.V24" 
+# 版本號 V25：修復 ISO 時間解析相容性 (支援不規則微秒長度)
+VERSION = "2026.03.17.V25-Full" 
+
+# 待機室過濾門檻：超過 30 天後的待機室忽略不計
+WAITING_ROOM_THRESHOLD_DAYS = 30
+
 
 def load_channel_ids(filename="channels.txt"):
     """從外部純文字檔讀取頻道 ID 清單"""
@@ -34,21 +38,33 @@ def load_channel_ids(filename="channels.txt"):
         print(f"❌ 嚴重錯誤：找不到 {filename}！請確保該檔案存在於儲存庫中。")
         sys.exit(1)
 
-WAITING_ROOM_THRESHOLD_DAYS = 30
-
 def get_api_key_info():
     """決定當下要使用的金鑰並回傳遮蔽資訊"""
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
         masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY_2 else "None"
         return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
     
-    masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY else "None"
+    masked = f"***{YT_API_KEY[-3:]}" if YT_API_KEY else "None"
     return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
 
-def get_yt_client(api_key):
+def safe_parse_iso(date_str):
+    """強健的 ISO 時間解析，處理 Supabase 回傳的不規則微秒位數"""
+    if not date_str: return None
+    date_str = date_str.replace('Z', '+00:00')
+    try:
+        return datetime.fromisoformat(date_str)
+    except ValueError:
+        match = re.match(r"(.+?)\.(\d+)([+-].+)", date_str)
+        if match:
+            base, micros, tz = match.groups()
+            standardized = f"{base}.{micros.ljust(6, '0')[:6]}{tz}"
+            return datetime.fromisoformat(standardized)
+        raise
+
+def get_yt_client(api_key): 
     return build("youtube", "v3", developerKey=api_key)
 
-def get_supabase_client() -> Client:
+def get_supabase_client() -> Client: 
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def parse_duration_to_seconds(duration_str):
@@ -59,22 +75,20 @@ def parse_duration_to_seconds(duration_str):
     return h * 3600 + m * 60 + s
 
 def fetch_and_save():
-    # --- A. 模式判定與金鑰設定 ---
     now_utc = datetime.now(timezone.utc)
     supabase = get_supabase_client()
     
-    # [修改] 捨棄脆弱的時間字串比對，改用資料庫真實紀錄判斷 (免疫 GitHub 延遲)
+    # 模式判定 (使用安全時間解析)
     is_snapshot_mode = False
     try:
         res = supabase.table("yt_stats_daily").select("check_time").order("check_time", desc=True).limit(1).execute()
         if res.data and "check_time" in res.data[0]:
-            last_check = datetime.fromisoformat(res.data[0]["check_time"].replace("Z", "+00:00"))
+            last_check = safe_parse_iso(res.data[0]["check_time"])
             time_diff = now_utc - last_check
-            # 如果距離上次快照超過 2 小時 45 分鐘，就啟動全量快照 (留 15 分鐘緩衝)
             if time_diff >= timedelta(hours=2, minutes=45):
                 is_snapshot_mode = True
         else:
-            is_snapshot_mode = True # 如果資料庫是空的，強制跑第一次快照
+            is_snapshot_mode = True 
     except Exception as e:
         print(f"⚠️ 無法查詢上次快照時間 ({e})，安全起見執行全量快照。")
         is_snapshot_mode = True
@@ -83,17 +97,15 @@ def fetch_and_save():
     youtube = get_yt_client(api_key)
     
     mode_text = "【全量快照 + 同接監控】" if is_snapshot_mode else "【僅同接監控】"
-    print(f"🚀 [版本 2026.03.16.V24] 啟動{mode_text}任務...")
+    print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
     print(f"🔑 目前使用金鑰: {key_name}")
     
     channel_ids = load_channel_ids("channels.txt")
-    if not channel_ids:
-        print("❌ 警告：頻道清單為空，請檢查 channels.txt 內容。")
-        return
+    if not channel_ids: return
 
     quota_used = 0
 
-    # --- B. 頻道基本資料與統計 ---
+    # --- 步驟 1: 頻道基本資料與統計 ---
     print(f"📡 步驟 1: 獲取頻道清單狀態 (頻道數: {len(channel_ids)})...")
     channel_map = {}
     parts = "snippet,statistics" if is_snapshot_mode else "snippet"
@@ -116,7 +128,7 @@ def fetch_and_save():
         except Exception as e:
             print(f"   ❌ 獲取頻道資料失敗: {e}")
 
-    # --- C. 偵測活動 ---
+    # --- 步驟 2: 偵測活動 ---
     print(f"📡 步驟 2: 掃描最近活動...")
     all_video_ids = []
     cid_to_video_ids = {}
@@ -136,16 +148,15 @@ def fetch_and_save():
                     if vid not in all_video_ids: all_video_ids.append(vid)
             cid_to_video_ids[cid] = vids
         except Exception as e:
-            pass # 單一頻道活動抓取失敗可忽略，避免洗版
+            pass 
 
-    # --- D. 批量解析影片狀態與同接 ---
+    # --- 步驟 3: 批量解析影片狀態與同接 ---
     live_info_map = {}
     video_details_list = []
     live_logs_to_insert = []
     
     if all_video_ids:
         print(f"📡 步驟 3: 解析 {len(all_video_ids)} 支影片的數據...")
-        # [關鍵修正] 不論模式為何，都抓取完整數據，確保外鍵存在且最新
         vid_parts = "snippet,liveStreamingDetails,contentDetails,statistics"
         
         for i in range(0, len(all_video_ids), 50):
@@ -164,6 +175,7 @@ def fetch_and_save():
                     ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
                     actual_start = lsd.get("actualStartTime")
                     
+                    # 待機室過濾 (使用 WAITING_ROOM_THRESHOLD_DAYS)
                     if status == "upcoming":
                         sch = lsd.get("scheduledStartTime")
                         if sch:
@@ -181,7 +193,6 @@ def fetch_and_save():
                             "captured_at": now_utc.isoformat()
                         })
 
-                    # [關鍵修正] 取消 is_snapshot_mode 的限制，永遠更新最新 5 支影片的數據與基礎資料
                     v_type = "Live" if "liveStreamingDetails" in v_item else "Shorts" if parse_duration_to_seconds(v_item.get("contentDetails", {}).get("duration", "")) <= 61 else "Video"
                     video_details_list.append({
                         "video_id": vid, "channel_id": snippet.get("channelId"), "title": snippet.get("title"),
@@ -193,7 +204,7 @@ def fetch_and_save():
             except Exception as e:
                 print(f"   ❌ 影片數據解析失敗: {e}")
 
-    # --- E. 寫入資料庫與終端機日誌輸出 ---
+    # --- 步驟 4: 執行資料庫存檔與狀態報告 ---
     print(f"💾 步驟 4: 執行資料庫存檔與狀態報告...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
     
@@ -235,7 +246,6 @@ def fetch_and_save():
             except Exception as e:
                 print(f"      ❌ 快照寫入失敗: {e}")
 
-    # [關鍵修正] 取消 is_snapshot_mode 限制，確保先寫入母表
     if video_details_list:
         print(f"🎬 批次更新影片清單 ({len(video_details_list)} 筆)...")
         try: 
@@ -250,6 +260,7 @@ def fetch_and_save():
         except Exception as e: 
             print(f"      ❌ 同接數據寫入失敗: {e}")
 
+    
     # --- F. 總結報告 ---
     utc_now = datetime.now(timezone.utc)
     tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
