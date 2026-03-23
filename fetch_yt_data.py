@@ -259,7 +259,6 @@ def fetch_and_save():
             supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
         except Exception as e: 
             print(f"      ❌ 同接數據寫入失敗: {e}")
-
     
     # --- F. 總結報告 ---
     utc_now = datetime.now(timezone.utc)
