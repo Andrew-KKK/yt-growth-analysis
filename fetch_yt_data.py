@@ -3,6 +3,7 @@ import sys
 import re
 from datetime import datetime, timezone, timedelta
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from supabase import create_client, Client
 
 # 強制輸出立即顯示
@@ -14,12 +15,11 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V25：修復 ISO 時間解析相容性 (支援不規則微秒長度)
-VERSION = "2026.03.17.V25-Full" 
+# 版本號 V26：導入 SmartYouTubeAPI 代理層 (時間分流 + 403 配額耗盡自動熱切換)
+VERSION = "2026.03.23.V26" 
 
 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
 WAITING_ROOM_THRESHOLD_DAYS = 30
-
 
 def load_channel_ids(filename="channels.txt"):
     """從外部純文字檔讀取頻道 ID 清單"""
@@ -38,14 +38,73 @@ def load_channel_ids(filename="channels.txt"):
         print(f"❌ 嚴重錯誤：找不到 {filename}！請確保該檔案存在於儲存庫中。")
         sys.exit(1)
 
-def get_api_key_info():
-    """決定當下要使用的金鑰並回傳遮蔽資訊"""
+def get_keys_by_preference():
+    """根據時間決定金鑰的優先使用順序 (時間分流機制)"""
+    keys = []
+    # 偶數小時優先用 Key 2，奇數小時優先用 Key 1
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
-        masked = f"***{YT_API_KEY_2[-3:]}" if YT_API_KEY_2 else "None"
-        return YT_API_KEY_2, f"備用金鑰 (Key 2) [{masked}]"
+        keys = [YT_API_KEY_2, YT_API_KEY]
+    else:
+        keys = [YT_API_KEY, YT_API_KEY_2]
     
-    masked = f"***{YT_API_KEY[-3:]}" if YT_API_KEY else "None"
-    return YT_API_KEY, f"主金鑰 (Key 1) [{masked}]"
+    # 過濾掉未設定的 None 金鑰
+    valid_keys = [k for k in keys if k]
+    return valid_keys
+
+class SmartYouTubeAPI:
+    """智慧 API 代理層：處理自動連線與配額耗盡時的熱切換 (Failover)"""
+    def __init__(self, keys):
+        if not keys:
+            print("❌ 錯誤：未提供任何 YouTube API 金鑰！")
+            sys.exit(1)
+        self.keys = keys
+        self.current_idx = 0
+        self.client = build("youtube", "v3", developerKey=self.keys[self.current_idx])
+        
+        self._print_current_key("初始化連線")
+
+    def _print_current_key(self, action_msg):
+        current_key = self.keys[self.current_idx]
+        masked = f"***{current_key[-3:]}"
+        key_label = "主金鑰 (Key 1)" if current_key == YT_API_KEY else "備用金鑰 (Key 2)"
+        print(f"🔑 {action_msg}: 使用 {key_label} [{masked}]")
+
+    def _handle_error_and_retry(self, error):
+        """檢查是否為配額耗盡，並嘗試切換金鑰"""
+        if isinstance(error, HttpError) and error.resp.status in [403]:
+            error_content = str(error).lower()
+            if "quotaexceeded" in error_content or "daily limit" in error_content:
+                if self.current_idx + 1 < len(self.keys):
+                    self.current_idx += 1
+                    print(f"\n⚠️ 警告：偵測到 API 配額耗盡 (Quota Exceeded)！")
+                    self._print_current_key("自動熱切換至下一把金鑰")
+                    # 重新建立 YouTube 客戶端連線
+                    self.client = build("youtube", "v3", developerKey=self.keys[self.current_idx])
+                    return True # 允許重試
+        return False # 無法重試或非配額錯誤，交由外層處理
+
+    # --- 以下為 API 封裝方法，內建無窮重試迴圈直到成功或金鑰全數耗盡 ---
+    
+    def get_channels(self, **kwargs):
+        while True:
+            try:
+                return self.client.channels().list(**kwargs).execute()
+            except Exception as e:
+                if not self._handle_error_and_retry(e): raise
+
+    def get_activities(self, **kwargs):
+        while True:
+            try:
+                return self.client.activities().list(**kwargs).execute()
+            except Exception as e:
+                if not self._handle_error_and_retry(e): raise
+
+    def get_videos(self, **kwargs):
+        while True:
+            try:
+                return self.client.videos().list(**kwargs).execute()
+            except Exception as e:
+                if not self._handle_error_and_retry(e): raise
 
 def safe_parse_iso(date_str):
     """強健的 ISO 時間解析，處理 Supabase 回傳的不規則微秒位數"""
@@ -61,9 +120,6 @@ def safe_parse_iso(date_str):
             return datetime.fromisoformat(standardized)
         raise
 
-def get_yt_client(api_key): 
-    return build("youtube", "v3", developerKey=api_key)
-
 def get_supabase_client() -> Client: 
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -78,7 +134,7 @@ def fetch_and_save():
     now_utc = datetime.now(timezone.utc)
     supabase = get_supabase_client()
     
-    # 模式判定 (使用安全時間解析)
+    # --- 模式判定 (狀態驅動) ---
     is_snapshot_mode = False
     try:
         res = supabase.table("yt_stats_daily").select("check_time").order("check_time", desc=True).limit(1).execute()
@@ -93,12 +149,12 @@ def fetch_and_save():
         print(f"⚠️ 無法查詢上次快照時間 ({e})，安全起見執行全量快照。")
         is_snapshot_mode = True
     
-    api_key, key_name = get_api_key_info()
-    youtube = get_yt_client(api_key)
-    
     mode_text = "【全量快照 + 同接監控】" if is_snapshot_mode else "【僅同接監控】"
     print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
-    print(f"🔑 目前使用金鑰: {key_name}")
+    
+    # 初始化智慧 API 代理層
+    available_keys = get_keys_by_preference()
+    yt_api = SmartYouTubeAPI(available_keys)
     
     channel_ids = load_channel_ids("channels.txt")
     if not channel_ids: return
@@ -113,7 +169,8 @@ def fetch_and_save():
     for i in range(0, len(channel_ids), 50):
         batch = channel_ids[i:i+50]
         try:
-            ch_res = youtube.channels().list(part=parts, id=",".join(batch)).execute()
+            # 替換為使用智慧代理層
+            ch_res = yt_api.get_channels(part=parts, id=",".join(batch))
             quota_used += 1
             for item in ch_res.get("items", []):
                 stats = item.get("statistics", {})
@@ -135,7 +192,8 @@ def fetch_and_save():
     for cid in channel_ids:
         try:
             max_r = 15 if is_snapshot_mode else 5
-            act_res = youtube.activities().list(part="snippet,contentDetails", channelId=cid, maxResults=max_r).execute()
+            # 替換為使用智慧代理層
+            act_res = yt_api.get_activities(part="snippet,contentDetails", channelId=cid, maxResults=max_r)
             quota_used += 1
             vids = []
             for act in act_res.get("items", []):
@@ -162,7 +220,8 @@ def fetch_and_save():
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
             try:
-                vid_res = youtube.videos().list(part=vid_parts, id=",".join(batch_vids)).execute()
+                # 替換為使用智慧代理層
+                vid_res = yt_api.get_videos(part=vid_parts, id=",".join(batch_vids))
                 quota_used += 1
                 
                 for v_item in vid_res.get("items", []):
@@ -175,7 +234,7 @@ def fetch_and_save():
                     ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
                     actual_start = lsd.get("actualStartTime")
                     
-                    # 待機室過濾 (使用 WAITING_ROOM_THRESHOLD_DAYS)
+                    # 待機室過濾
                     if status == "upcoming":
                         sch = lsd.get("scheduledStartTime")
                         if sch:
@@ -260,13 +319,14 @@ def fetch_and_save():
         except Exception as e: 
             print(f"      ❌ 同接數據寫入失敗: {e}")
     
-    # --- F. 總結報告 ---
-    utc_now = datetime.now(timezone.utc)
-    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+    # --- 總結報告 ---
+    
     print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
     print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
-    print(f"💰 本次消耗 Quota: {quota_used} | 每日配額佔比: {(quota_used / 10000) * 100:.2f}%")
+    print(f"💰 本次消耗估計 Quota: {quota_used} | 每日配額佔比估計: {(quota_used / 10000) * 100:.2f}%")
+    utc_now = datetime.now(timezone.utc)
     print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
     print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"------------------------\n")
 
