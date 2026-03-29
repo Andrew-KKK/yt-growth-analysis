@@ -1,4 +1,4 @@
-#VSPO! count: 33
+#VSPO! count: 34
 UCuI5XaO-6VkOEhHao6ij7JA # ぶいすぽっ!【公式】
 
 UCyLGcqYs7RsBb3L0SJfzGYA #花芽すみれ
@@ -33,8 +33,9 @@ UCeCWj-SiJG9SWN6wGORiLmw # Jira Jisaki 【VSPO! EN】
 UCKSpM183c85d5V2cW5qaUjA # Narin Mikure【VSPO! EN】
 UC7Xglp1fske9zmRe7Oj8YyA # Riko Solari【VSPO! EN】
 UCp_3ej2br9l9L1DSoHVDZGw # Eris Suzukami 【VSPO! EN】
+UCRJV_1aV4aZjFAEUn6o5arw # Juno Umezono【VSPO! EN】
 
-# 子午計畫 count: 16, total: 49
+# 子午計畫 count: 16, total: 50
 UCcyTlQ92NIJ4fYR45OFpFQQ # MeridianProject子午計畫
 
 UCs5FNYPHeZz5f7N1BDExxfg # 玖玖巴
@@ -53,7 +54,7 @@ UC6NXFJInhUYGdKeFHhPrtpA # 幸Sachi Channel
 UCyO8Nae_zF-OpxtbL01Dwow # 煦Hiyori Channel
 UC2mtxQezpgWjqMXF6WkuMiw # 実Hitomi Channel
 
-# hololive count: 36, total: 85
+# hololive count: 36, total: 86
 UC10wVt6hoQiwySRhz7RdOUA # hololive DEV_IS ReGLOSS
 UCu2n3qHuOuQIygREMnWeQWg # hololive DEV_IS FLOW GLOW
 UCJFZiqLMntJufDCHc6bQixg # hololive ホロライブ - VTuber Group
@@ -92,7 +93,7 @@ UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
 UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
 
-# nijisanji count: 36, total: 121
+# nijisanji count: 36, total: 122
 #官方頻道們
 UC-JSeFfovhNsEhftt1WHMvg # NIJISANJI EN Official
 UCX7YkU9nEeaoZbkVLVajcMg # にじさんじ
