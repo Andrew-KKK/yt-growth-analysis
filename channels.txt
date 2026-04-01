@@ -1,4 +1,4 @@
-#VSPO! count: 34
+# VSPO! count: 34
 UCuI5XaO-6VkOEhHao6ij7JA # ぶいすぽっ!【公式】
 
 UCyLGcqYs7RsBb3L0SJfzGYA #花芽すみれ
@@ -94,7 +94,7 @@ UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
 
 # nijisanji count: 36, total: 122
-#官方頻道們
+# 官方頻道們
 UC-JSeFfovhNsEhftt1WHMvg # NIJISANJI EN Official
 UCX7YkU9nEeaoZbkVLVajcMg # にじさんじ
 UC_T8F2CvqZOwa2kme0WwRhg # にじさんじ公式切り抜きチャンネル【NIJISANJI Official Best Moments】
@@ -133,9 +133,58 @@ UCQYwIUCLqFoin7lHKmePjJw # Klara Charmwood 【NIJISANJI EN】
 UCyRkQSuhJILuGOuXk10voPg # Layla Alstroemeria【NIJISANJI / にじさんじ】
 UClS6k3w1sPwlVFqK3-yID5A # ハリ / Ryu Hari 【にじさんじ】
 
-# 其他 count: 約30
+# あおぎり高校 count: 15
+UCPLeqi7rIqS9uY4_TrSUOMg # あおぎり高校 - Aogiri Vtuber High School
 
-#あおぎり高校 count: 14, total: 136
+UCt7_srJeiw55kTcK7M9ID6g # たまこ。Ch./あおぎり高校
+UC7wZb5INldbGweowOhBIs8Q # 石狩あかり/あおぎり高校
+UCs-lYkwb-NYKE9_ssTRDK3Q # ねくろちゃん -Yamaguro Nekuro- /あおぎり高校
+UCXXnWssOLdB2jg-4CznteAA # こまるCh. - Komaru Kurikoma -/あおぎり高校
+UCyY6YeINiwQoA-FnmdQCkug # ちよみch. 千代浦蝶美 /あおぎり高校
+UCFvEuP2EDkvrgJpHI6-pyNw # Rieru Ch. 我部りえる /あおぎり高校
+UCAHXqn4nAd2j3LRu1Qyi_JA # エトラ / étraチャンネル
+UCmiYJycZXBGc4s_zjIRUHhQ # うらめちゃんねる /あおぎり高校
+UC1sBUU-y9FlHNukwsrR4bmA # ぷわぷわぽぷら /あおぎり高校
+UCIwHOJn_3QjBTwQ_gNj7WRA # 萌実ちゃんねる / あおぎり高校
+UCxy3KNlLQiN64tikKipnQNg # 月赴ゐぶき / あおぎり高校
+UCdi5pj0MDQ-3LFNUFIFmD8w # うる虎がーる / あおぎり高校
+UCXXlhNCp1EPbDQ2pzmmy9aw # むじなch / あおぎり高校
+# total: 
 
+# Neo-Porte count: 22
+UCm5rjZAFQuRrnDCkxnwvWkg # Neo-Porte
 
-# (青桐, 深淵組, 春魚, 個人勢實況主, himehina, 長瀬有花 (https://www.youtube.com/channel/UCf-PcSHzYAtfcoiBr5C9DZA), neo-porte, uniraid, 棗いつき(https://www.youtube.com/@itsukinatsume) ...)
+UCIu-aUArYq_H84dBpCAokMA # 白雪レイドーReid Channelー
+UChLfthKoUV502J7gU9STArg # 渋谷ハル
+UCdVYY2166hyjUAMHwp2almg # 光葉エニ
+UCv3EicDtxObcZZmnFcHvNnw # 鬼ヶ谷 テン / Onigaya Ten
+UCElYE3bfzjjmJ9xwjvro9Yw # 日裏クロ / Hiura Kuro
+UC6FprWVXuULaY9mZOcqTe4A # 甘音あむ / Amane Amu
+UCTxoJgb4DzMd7tiM8cvf4PA # 麻倉シノ
+UCAHQGIKolfBfoeXXMY79SBA # 白那しずく
+UCKuwxopq9c3cldzSOo4ceSA # 八神ツクモ / Yagami Tsukumo
+UCWnQDjlXTLDyYowc3LaHyJQ # 柊ツルギ / Hiiragi Tsurugi
+UC4Xuz67FNRr69ILv2b7ZRBA # 青桐エイト
+UCo6mwsozDGMW0UNGowBJGhg # 昏昏アリア / Konkon Aria
+UCEk1_ZVGRiVV-gxHT9wdNMg # 幽乃うつろ / Kasukano Utsuro
+UCNGMMdEgYIUR6rC44v9aZ8w # 瀬尾カザリ / Ceo Kazari
+UCZrYHIPsKhYAXqOls2kQQNQ # 絲依とい / Itoi Toi
+UCmpEFsiD67ZOjn2CCJoo1mw # 久我レオ / Kuga Leo # 低頻活動者
+UCEtUOMEAuAMz8dor89rt2RA # 心白てと / Kohaku Teto # 低頻活動者
+UCEy9cYULQrC2cRlVqJPCcSw # 水無瀬 / Minase # 低頻活動者
+UCZmUoMwjyuQ59sk5_7Tx07A # 夜絆ニウ / yozuna niu
+UCuk7vapXKckSw6yCGGDspDg # 緋月ゆい / Hizuki Yui
+UCbBLqA4HRowpj2JuLrkig5w # 或世イヌ / Aruse Inu # 低頻活動者
+
+UCKofJjNEmQ3LwERp3pRVxtw # ゆにれいど !【公式】 count: 
+
+UCFv2z4iM5vHrS8bZPq4fHQQ # HIMEHINA Channel
+
+UCf-PcSHzYAtfcoiBr5C9DZA # 長瀬有花 / YUKA NAGASE
+
+UCemRJJ91Y8av8WZStaWkoug #  Shinengumivtg ch. 深淵組
+
+UCXN-ZRdGnFtLiJ8EY1i_alg # Itsuki Natsume / 棗いつき
+
+# ---
+# (青桐, 深淵組, 春魚, 個人勢實況主, uniraid ...)
