@@ -136,7 +136,7 @@ UCyRkQSuhJILuGOuXk10voPg # Layla Alstroemeria【NIJISANJI / にじさんじ】
 UClS6k3w1sPwlVFqK3-yID5A # ハリ / Ryu Hari 【にじさんじ】
 # total: 122
 
-# あおぎり高校 count: 15
+# あおぎり高校 count: 14
 UCPLeqi7rIqS9uY4_TrSUOMg # あおぎり高校 - Aogiri Vtuber High School
 
 UCt7_srJeiw55kTcK7M9ID6g # たまこ。Ch./あおぎり高校
@@ -152,7 +152,7 @@ UCIwHOJn_3QjBTwQ_gNj7WRA # 萌実ちゃんねる / あおぎり高校
 UCxy3KNlLQiN64tikKipnQNg # 月赴ゐぶき / あおぎり高校
 UCdi5pj0MDQ-3LFNUFIFmD8w # うる虎がーる / あおぎり高校
 UCXXlhNCp1EPbDQ2pzmmy9aw # むじなch / あおぎり高校
-# total: 137
+# total: 136
 
 # Neo-Porte count: 22
 UCm5rjZAFQuRrnDCkxnwvWkg # Neo-Porte
@@ -178,7 +178,7 @@ UCEy9cYULQrC2cRlVqJPCcSw # 水無瀬 / Minase # 低頻活動者
 UCZmUoMwjyuQ59sk5_7Tx07A # 夜絆ニウ / yozuna niu
 UCuk7vapXKckSw6yCGGDspDg # 緋月ゆい / Hizuki Yui
 UCbBLqA4HRowpj2JuLrkig5w # 或世イヌ / Aruse Inu # 低頻活動者
-# total: 159
+# total: 158
 
 # ゆにれいど count: 19
 UCKofJjNEmQ3LwERp3pRVxtw # ゆにれいど !【公式】
@@ -201,7 +201,7 @@ UCOnPtWuGIz0kTNGcb9FR8xQ # 時羽しう / tokiha shiu
 UCsabgMZxnsDwYzCe9vcQbNw # 鳴子ライチ / Naruko Raichi
 UCUAy59_4jUN0WGB5gLY8LBg # 聖ルナティア / Sei Lunathia
 UC_mXkuKyIkO1hYjSeMvbt5g # 火狩夜れんま / Renma Kagariya
-# total: 178
+# total: 177
 
 
 
@@ -212,7 +212,7 @@ UCf-PcSHzYAtfcoiBr5C9DZA # 長瀬有花 / YUKA NAGASE
 UCemRJJ91Y8av8WZStaWkoug #  Shinengumivtg ch. 深淵組
 
 UCXN-ZRdGnFtLiJ8EY1i_alg # Itsuki Natsume / 棗いつき
-# total: 182
+# total: 181
 
 # ---
 # (青桐, 深淵組, 春魚, 個人勢實況主, uniraid ...)
