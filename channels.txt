@@ -53,7 +53,7 @@ UC8zQumEzXBpWSmbHmr8wMKw # 雪Koyuki Channel
 UC6NXFJInhUYGdKeFHhPrtpA # 幸Sachi Channel
 UCyO8Nae_zF-OpxtbL01Dwow # 煦Hiyori Channel
 UC2mtxQezpgWjqMXF6WkuMiw # 実Hitomi Channel
-total: 50
+# total: 50
 
 # hololive count: 36
 UC10wVt6hoQiwySRhz7RdOUA # hololive DEV_IS ReGLOSS
@@ -93,7 +93,7 @@ UCvN5h1ShZtc7nly3pezRayg # Cecilia Immergreen Ch. hololive-EN
 UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
 UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
-total: 86
+# total: 86
 
 # nijisanji count: 36
 # 官方頻道們
@@ -134,7 +134,7 @@ UCiSRx1a2k-0tOg-fs6gAolQ # 飛鳥ひな【にじさんじ所属】
 UCQYwIUCLqFoin7lHKmePjJw # Klara Charmwood 【NIJISANJI EN】
 UCyRkQSuhJILuGOuXk10voPg # Layla Alstroemeria【NIJISANJI / にじさんじ】
 UClS6k3w1sPwlVFqK3-yID5A # ハリ / Ryu Hari 【にじさんじ】
-total: 122
+# total: 122
 
 # あおぎり高校 count: 15
 UCPLeqi7rIqS9uY4_TrSUOMg # あおぎり高校 - Aogiri Vtuber High School
