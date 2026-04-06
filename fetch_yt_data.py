@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V27：新增檢查頻道清單及回傳清單是否相符的功能
-VERSION = "2026.04.07.V27" 
+VERSION = "2026.04.07.V27.1" 
 
 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
 WAITING_ROOM_THRESHOLD_DAYS = 30
@@ -185,11 +185,12 @@ def fetch_and_save():
         except Exception as e:
             print(f"   ❌ 獲取頻道資料失敗: {e}")
 
-    # 檢查頻道清單及回傳清單是否相符
-    missing_ids = set(channel_ids) - set(channel_map.keys())
-    if missing_ids:
-        print(f"⚠️ 警告：YouTube 找不到以下 {len(missing_ids)} 個頻道 ID (可能是打錯或被刪除): {missing_ids}")
-
+    # 利用對稱差集 (Symmetric Difference)檢查頻道清單及回傳清單是否相符
+    mismatch_ids = set(channel_ids) ^ set(channel_map.keys())
+    if mismatch_ids:
+        print(f"⚠️ 警告：名單雙向比對異常！發現 {len(mismatch_ids)} 個不一致的 ID (可能是打錯字、被刪除或 API 異常回傳):")
+        print(mismatch_ids)
+    
     # --- 步驟 2: 偵測活動 ---
     print(f"📡 步驟 2: 掃描最近活動...")
     all_video_ids = []
