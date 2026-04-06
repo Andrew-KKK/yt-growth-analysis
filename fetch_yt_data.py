@@ -321,7 +321,7 @@ def fetch_and_save():
     
     # --- 總結報告 ---
     
-    print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
+    print(f"📊 --- 任務總結報告 ({VERSION}) ---")
     print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
     print(f"💰 本次消耗估計 Quota: {quota_used} | 每日配額佔比估計: {(quota_used / 10000) * 100:.2f}%")
     utc_now = datetime.now(timezone.utc)
