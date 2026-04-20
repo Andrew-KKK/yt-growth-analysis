@@ -15,8 +15,11 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V27：新增檢查頻道清單及回傳清單是否相符的功能
-VERSION = "2026.04.07.V27.1" 
+# 版本號 V28：導入全域冷卻機制 (避免 n8n 與 GitHub 重複執行)
+VERSION = "2026.04.20.V28-Cooldown" 
+
+# 冷卻時間設定 (分鐘)
+COOLDOWN_MINUTES = 27
 
 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
 WAITING_ROOM_THRESHOLD_DAYS = 30
@@ -133,6 +136,19 @@ def parse_duration_to_seconds(duration_str):
 def fetch_and_save():
     now_utc = datetime.now(timezone.utc)
     supabase = get_supabase_client()
+
+    print(f"🚀 [版本 {VERSION}] 啟動環境與冷卻檢查...")
+    try:
+        last_run_res = supabase.table("yt_system_logs").select("run_at").order("run_at", desc=True).limit(1).execute()
+        if last_run_res.data and "run_at" in last_run_res.data[0]:
+            last_run_time = safe_parse_iso(last_run_res.data[0]["run_at"])
+            elapsed = now_utc - last_run_time
+            if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
+                print(f"⏳ 冷卻中：距離上次成功執行僅 {elapsed.seconds // 60} 分鐘。")
+                print("🛑 為了節省 API Quota，本次任務自動取消，將系統交回給另一個觸發器。")
+                return # 煞車中止，直接結束程式
+    except Exception as e:
+        print(f"⚠️ 讀取心跳紀錄失敗 ({e})，判斷為首次執行或表結構異常，跳過冷卻檢查。")
     
     # --- 模式判定 (狀態驅動) ---
     is_snapshot_mode = False
@@ -324,6 +340,16 @@ def fetch_and_save():
             supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
         except Exception as e: 
             print(f"      ❌ 同接數據寫入失敗: {e}")
+    try:
+        source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_actions"
+        supabase.table("yt_system_logs").insert({
+            "trigger_source": source, 
+            "version": VERSION
+        }).execute()
+        print(f"✅ 系統心跳打卡成功！來源: {source}")
+    except Exception as e:
+        print(f"⚠️ 系統打卡失敗 ({e})，但不影響數據寫入。")
+
     
     # --- 總結報告 ---
     
