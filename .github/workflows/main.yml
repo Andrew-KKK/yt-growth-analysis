@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
+    inputs:
+      n8n_trigger:
+        description: '是否由 n8n 觸發'
+        required: false
+        default: 'false'
 
 jobs:
   run-fetcher:
@@ -26,4 +31,5 @@ jobs:
           YT_API_KEY_2: ${{ secrets.YT_API_KEY_2 }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          N8N_TRIGGER: ${{ github.event.inputs.n8n_trigger == 'true' && 'true' || '' }}
         run: python fetch_yt_data.py
