@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V28：導入全域冷卻機制 (避免 n8n 與 GitHub 重複執行)
-VERSION = "2026.04.20.V28-Cooldown" 
+VERSION = "2026.04.20.V28.1-Cooldown" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 27
@@ -342,7 +342,7 @@ def fetch_and_save():
             print(f"      ❌ 同接數據寫入失敗: {e}")
     try:
         source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_actions"
-        supabase.table("yt_system_logs").insert({
+        supabase.table("github_actions_logs").insert({
             "trigger_source": source, 
             "version": VERSION
         }).execute()
