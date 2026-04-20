@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V28：導入全域冷卻機制 (避免 n8n 與 GitHub 重複執行)
-VERSION = "2026.04.20.V28.1-Cooldown" 
+VERSION = "2026.04.20.V28.2-Cooldown" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 27
@@ -139,7 +139,7 @@ def fetch_and_save():
 
     print(f"🚀 [版本 {VERSION}] 啟動環境與冷卻檢查...")
     try:
-        last_run_res = supabase.table("yt_system_logs").select("run_at").order("run_at", desc=True).limit(1).execute()
+        last_run_res = supabase.table("github_actions_logs").select("run_at").order("run_at", desc=True).limit(1).execute()
         if last_run_res.data and "run_at" in last_run_res.data[0]:
             last_run_time = safe_parse_iso(last_run_res.data[0]["run_at"])
             elapsed = now_utc - last_run_time
