@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V28：導入全域冷卻機制 (避免 n8n 與 GitHub 重複執行)
-VERSION = "2026.04.20.V28.3-Cooldown" 
+VERSION = "2026.04.20.V28.4-Cooldown" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 27
@@ -146,6 +146,10 @@ def fetch_and_save():
             if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
                 print(f"⏳ 冷卻中：距離上次成功執行僅 {elapsed.seconds // 60} 分鐘。")
                 print("🛑 為了節省 API Quota，本次任務自動取消，等待下次觸發")
+                utc_now = datetime.now(timezone.utc)
+                print(f"🕒 目前時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+                tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+                print(f"🇹🇼 目前時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
                 return # 煞車中止，直接結束程式
     except Exception as e:
         print(f"⚠️ 讀取心跳紀錄失敗 ({e})，判斷為首次執行或表結構異常，跳過冷卻檢查。")
