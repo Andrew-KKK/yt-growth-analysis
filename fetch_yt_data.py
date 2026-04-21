@@ -19,7 +19,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 VERSION = "2026.04.20.V28.4-Cooldown" 
 
 # 冷卻時間設定 (分鐘)
-COOLDOWN_MINUTES = 27
+COOLDOWN_MINUTES = 25
 
 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
 WAITING_ROOM_THRESHOLD_DAYS = 30
