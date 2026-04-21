@@ -96,7 +96,6 @@ UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
 # total: 86
 
 # nijisanji count: 44
-# 官方頻道們
 UC-JSeFfovhNsEhftt1WHMvg # NIJISANJI EN Official
 UCX7YkU9nEeaoZbkVLVajcMg # にじさんじ
 UC_T8F2CvqZOwa2kme0WwRhg # にじさんじ公式切り抜きチャンネル【NIJISANJI Official Best Moments】
@@ -134,7 +133,6 @@ UCiSRx1a2k-0tOg-fs6gAolQ # 飛鳥ひな【にじさんじ所属】
 UCQYwIUCLqFoin7lHKmePjJw # Klara Charmwood 【NIJISANJI EN】
 UCyRkQSuhJILuGOuXk10voPg # Layla Alstroemeria【NIJISANJI / にじさんじ】
 UClS6k3w1sPwlVFqK3-yID5A # ハリ / Ryu Hari 【にじさんじ】
-
 UC9HYkiQZ1_b3J_F8gc12eaA # 塚原大地 / Tsukahara Daichi【にじさんじ】
 UCGGIGlgxXoVu1ZzbQ2XBxqQ # 小々波いるか / Kokonami Iruka【にじさんじ】
 UCsxs_R8xnsQN4t-F_3qQ8PQ # レヨン / Rayon【にじさんじ】
