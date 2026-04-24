@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V30：新增影片最後更新時間紀錄 (last_updated_at)
-VERSION = "2026.04.24.V30.3-VideoTime" 
+VERSION = "2026.04.24.V30.4-VideoTime" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -145,7 +145,7 @@ def fetch_and_save():
     
     now_utc = datetime.now(timezone.utc)
     print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}")
-    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
+    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
     print(f"🇹🇼 目前時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     
