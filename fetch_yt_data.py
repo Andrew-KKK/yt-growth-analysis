@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V29：導入強制執行 (Skip Cooldown) 機制
-VERSION = "2026.04.24.V29-ForceRun" 
+VERSION = "2026.04.24.V29.1-ForceRun" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -146,7 +146,7 @@ def fetch_and_save():
             last_run_time = safe_parse_iso(last_run_res.data[0]["run_at"])
             elapsed = now_utc - last_run_time
             if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
-                if is_force_run:
+                if skip_cooldown:
                     print(f"⚠️ 距離上次成功執行僅 {elapsed.seconds // 60} 分鐘，但接收到強制指令，繼續執行")
                 else:
                     print(f"⏳ 冷卻中：距離上次成功執行僅 {elapsed.seconds // 60} 分鐘。")
@@ -351,7 +351,7 @@ def fetch_and_save():
             print(f"      ❌ 同接數據寫入失敗: {e}")
     try:
         supabase.table("github_actions_logs").insert({
-            "trigger_source": f"{source}{'_forced' if is_force_run else ''}", 
+            "trigger_source": f"{source}{'_forced' if skip_cooldown else ''}", 
             "version": VERSION
         }).execute()
         print(f"✅ 系統心跳打卡成功！來源: {source}")
