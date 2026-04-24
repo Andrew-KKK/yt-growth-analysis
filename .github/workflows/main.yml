@@ -9,6 +9,12 @@ on:
         description: '是否由 n8n 觸發'
         required: false
         default: 'false'
+      skip_cooldown:
+        description: '⚠️ 強制執行 (忽略冷卻限制)'
+        required: false
+        type: boolean
+        default: false
+
 
 jobs:
   run-fetcher:
