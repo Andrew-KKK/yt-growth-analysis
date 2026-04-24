@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V29：導入強制執行 (Skip Cooldown) 機制
-VERSION = "2026.04.24.V29.2-ForceRun" 
+VERSION = "2026.04.24.V29.3-ForceRun" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -352,7 +352,7 @@ def fetch_and_save():
             print(f"      ❌ 同接數據寫入失敗: {e}")
     try:
         supabase.table("github_actions_logs").insert({
-            "trigger_source": f"{source}{'_forced' if  else ''}", 
+            "trigger_source": f"{source}{'_forced' if skip_cooldown else ''}", 
             "version": VERSION
         }).execute()
         print(f"✅ 系統心跳打卡成功！來源: {source}")
