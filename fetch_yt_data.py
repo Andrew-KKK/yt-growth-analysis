@@ -15,8 +15,8 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V29：導入強制執行 (Skip Cooldown) 機制
-VERSION = "2026.04.24.V29.5-ForceRun" 
+# 版本號 V30：新增影片最後更新時間紀錄 (last_updated_at)
+VERSION = "2026.04.24.V30-VideoTime" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -291,6 +291,7 @@ def fetch_and_save():
                         "view_count": int(stats["viewCount"]) if "viewCount" in stats else None,
                         "like_count": int(stats["likeCount"]) if "likeCount" in stats else None,
                         "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None
+                        "last_updated_at": now_utc.isoformat()
                     })
             except Exception as e:
                 print(f"   ❌ 影片數據解析失敗: {e}")
