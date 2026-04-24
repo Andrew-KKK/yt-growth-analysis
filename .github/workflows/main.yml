@@ -38,4 +38,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           N8N_TRIGGER: ${{ github.event.inputs.n8n_trigger == 'true' && 'true' || '' }}
+          SKIP_COOLDOWN: ${{ github.event.inputs.skip_cooldown == 'true' && 'true' || 'false' }}
         run: python fetch_yt_data.py
