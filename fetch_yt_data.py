@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V30：新增影片最後更新時間紀錄 (last_updated_at)
-VERSION = "2026.04.24.V30.2-VideoTime" 
+VERSION = "2026.04.24.V30.3-VideoTime" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -134,18 +134,21 @@ def parse_duration_to_seconds(duration_str):
     return h * 3600 + m * 60 + s
 
 def fetch_and_save():
-    now_utc = datetime.now(timezone.utc)
     supabase = get_supabase_client()
 
     print(f"🚀 [版本 {VERSION}] 啟動環境與冷卻檢查...")
-    utc_now = datetime.now(timezone.utc)
-    print(f"🕒 目前時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
+    
+    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_actions"
+    print(f"本次執行觸發來源: {source}")
+    
+    now_utc = datetime.now(timezone.utc)
+    print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}")
     tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
     print(f"🇹🇼 目前時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_actions"
-    skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
-    print(f"本次執行觸發來源: {source}")
+    
     try:
         last_run_res = supabase.table("github_actions_logs").select("run_at").order("run_at", desc=True).limit(1).execute()
         if last_run_res.data and "run_at" in last_run_res.data[0]:
