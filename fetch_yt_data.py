@@ -16,7 +16,7 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 # 版本號 V30：新增影片最後更新時間紀錄 (last_updated_at)
-VERSION = "2026.04.24.V30-VideoTime" 
+VERSION = "2026.04.24.V30.1-VideoTime" 
 
 # 冷卻時間設定 (分鐘)
 COOLDOWN_MINUTES = 25
@@ -290,7 +290,7 @@ def fetch_and_save():
                         "video_type": v_type, "published_at": snippet.get("publishedAt"),
                         "view_count": int(stats["viewCount"]) if "viewCount" in stats else None,
                         "like_count": int(stats["likeCount"]) if "likeCount" in stats else None,
-                        "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None
+                        "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None,
                         "last_updated_at": now_utc.isoformat()
                     })
             except Exception as e:
