@@ -39,4 +39,5 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           N8N_TRIGGER: ${{ github.event.inputs.n8n_trigger == 'true' && 'true' || '' }}
           SKIP_COOLDOWN: ${{ github.event.inputs.skip_cooldown == 'true' && 'true' || 'false' }}
+          N8N_WATCHDOG_WEBHOOK: ${{ secrets.N8N_WATCHDOG_WEBHOOK }}
         run: python fetch_yt_data.py
