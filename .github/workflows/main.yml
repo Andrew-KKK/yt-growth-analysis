@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          version: 1.62.0 # 指定穩定版本
+          
       - name: Run fetch_yt_data.py and record result
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
