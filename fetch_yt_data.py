@@ -18,7 +18,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") # <--- 【V31 新增】看門狗 Webhook
 
 # 版本號 V31：導入事件驅動看門狗 (Event-Driven Watchdog)
-VERSION = "2026.04.27.V31.2-EventWatchdog" 
+VERSION = "2026.04.27.V31.3-EventWatchdog" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
@@ -391,14 +391,6 @@ def fetch_and_save():
             supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
         except Exception as e: 
             print(f"      ❌ 同接數據寫入失敗: {e}")
-    try:
-        supabase.table("github_actions_logs").insert({
-            "trigger_source": f"{source}{'_forced' if skip_cooldown else ''}", 
-            "version": VERSION
-        }).execute()
-        print(f"✅ 系統心跳打卡成功！來源: {source}")
-    except Exception as e:
-        print(f"⚠️ 系統打卡失敗 ({e})，但不影響數據寫入。")
 
     if current_log_id:
         try:
@@ -407,7 +399,7 @@ def fetch_and_save():
             }).eq("log_id", current_log_id).execute()
             print("🔓 任務完成，系統狀態日誌已標記為 COMPLETED。")
         except Exception as e:
-            print(f"⚠️ 系統解鎖更新失敗 ({e})，15 分鐘後 n8n 可能會誤判為 Deadlock 發出警報。")
+            print(f"⚠️ 系統解鎖更新失敗 ({e})，n8n 可能會誤判為 Deadlock 並發出警報。")
     
     # --- 總結報告 ---
     
