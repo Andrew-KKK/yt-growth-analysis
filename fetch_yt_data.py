@@ -15,14 +15,12 @@ YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# 版本號 V30：新增影片最後更新時間紀錄 (last_updated_at)
-VERSION = "2026.04.24.V30.4-VideoTime" 
+# 版本號 V31：導入事件驅動看門狗 (Event-Driven Watchdog)
+VERSION = "2026.04.27.V31-EventWatchdog" 
 
-# 冷卻時間設定 (分鐘)
-COOLDOWN_MINUTES = 25
-
-# 待機室過濾門檻：超過 30 天後的待機室忽略不計
-WAITING_ROOM_THRESHOLD_DAYS = 30
+COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
+WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
+DEADLOCK_MINUTES = 10 # 超過此時間的 RUNNING 視為死鎖
 
 def load_channel_ids(filename="channels.txt"):
     """從外部純文字檔讀取頻道 ID 清單"""
@@ -150,19 +148,55 @@ def fetch_and_save():
 
     
     try:
-        last_run_res = supabase.table("github_actions_logs").select("run_at").order("run_at", desc=True).limit(1).execute()
-        if last_run_res.data and "run_at" in last_run_res.data[0]:
-            last_run_time = safe_parse_iso(last_run_res.data[0]["run_at"])
+        last_run_res = supabase.table("github_actions_logs").select("*").order("run_at", desc=True).limit(1).execute()
+        if last_run_res.data:
+            last_log = last_run_res.data[0]
+            last_run_time = safe_parse_iso(last_log.get("run_at"))
+            last_status = last_log.get("status", "COMPLETED")
             elapsed = now_utc - last_run_time
-            if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
-                if skip_cooldown:
-                    print(f"⚠️ 距離上次成功執行僅 {elapsed.seconds // 60} 分鐘，但接收到強制指令，繼續執行")
+            
+            # 情境 A：上一筆卡在 RUNNING
+            if last_status == "RUNNING" and not skip_cooldown:
+                if elapsed < timedelta(minutes=DEADLOCK_MINUTES):
+                    print(f"🔒 系統目前正在執行中 (已執行 {elapsed.seconds // 60} 分鐘)。")
+                    print("🛑 避免競爭危害 (Race Condition)，本次任務自動退出。")
+                    return # 程式中止
                 else:
+                    # n8n 理論上已經寄信了，這裡 Python 只需要自己接管任務即可
+                    print(f"☠️ 警告：偵測到上一筆任務卡死 (已執行 {elapsed.seconds // 60} 分鐘)！判定為 Deadlock。")
+                    print("🔧 啟動自我修復程序，強制接管...")
+
+            # 情境 B：上一筆已順利 COMPLETED (進入常規冷卻檢查)
+            elif last_status == "COMPLETED" and not skip_cooldown:
+                if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
                     print(f"⏳ 冷卻中：距離上次成功執行僅 {elapsed.seconds // 60} 分鐘。")
                     print("🛑 為了節省 API Quota，本次任務自動取消，等待下次觸發")
-                    return # 直接結束程式
+                    return # 程式中止
     except Exception as e:
         print(f"⚠️ 讀取心跳紀錄失敗 ({e})，判斷為首次執行或表結構異常，跳過冷卻檢查。")
+
+    current_log_id = None
+    try:
+        # 1. 寫入 RUNNING 日誌 (上鎖)
+        insert_res = supabase.table("github_actions_logs").insert({
+            "trigger_source": f"{source}{'_forced' if skip_cooldown else ''}", 
+            "version": VERSION,
+            "status": "RUNNING"
+        }).execute()
+        
+        if insert_res.data:
+            current_log_id = insert_res.data[0].get("log_id")
+            print(f"✅ 成功寫入啟動日誌並上鎖 (Log ID: {current_log_id})")
+            
+            # 2. 呼叫 n8n 看門狗掛號
+            if N8N_WATCHDOG_WEBHOOK:
+                try:
+                    requests.post(N8N_WATCHDOG_WEBHOOK, json={"log_id": current_log_id}, timeout=3)
+                    print(f"🐕 已呼叫 n8n 看門狗，n8n 看門狗將自動查驗狀態。")
+                except Exception as e:
+                    print(f"⚠️ 呼叫看門狗失敗 ({e})，但不影響數據採集。")
+    except Exception as e:
+        print(f"⚠️ 寫入啟動日誌失敗 ({e})，但不影響數據採集。")
     
     # --- 模式判定 (狀態驅動) ---
     is_snapshot_mode = False
@@ -364,6 +398,14 @@ def fetch_and_save():
     except Exception as e:
         print(f"⚠️ 系統打卡失敗 ({e})，但不影響數據寫入。")
 
+    if current_log_id:
+        try:
+            supabase.table("github_actions_logs").update({
+                "status": "COMPLETED"
+            }).eq("log_id", current_log_id).execute()
+            print("🔓 任務完成，系統狀態日誌已標記為 COMPLETED。")
+        except Exception as e:
+            print(f"⚠️ 系統解鎖更新失敗 ({e})，15 分鐘後 n8n 可能會誤判為 Deadlock 發出警報。")
     
     # --- 總結報告 ---
     
