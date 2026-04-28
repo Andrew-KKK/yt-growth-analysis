@@ -20,15 +20,15 @@
 - **高頻同接層 (Heartbeat, 每 30 分鐘)**：專注捕捉直播瞬間的同接人數 (CCV)，繪製直播聚人曲線。
 - **低頻快照層 (Snapshot, 每 3 小時)**：記錄訂閱數與總觀看數成長，並更新頻道最新的影片數據庫（觀看數、按讚數、留言數）。
 
-### **2. 分散式鎖定與全域冷卻 (Distributed Lock & Global Cooldown)**
+### **2. 自建 Linux 伺服器與零信任全域鎖 (Self-Hosted Server & Zero-Trust Lock)**
 
-- **問題**：GitHub Actions 的排程常有 1~30 分鐘不等的嚴重延遲 (Cron Jitter)。
-- **解法**：在 Supabase 實作 `github_actions_logs`，並施加 `NOT NULL` 約束實作嚴謹的狀態機 (State Machine)。
-- **冷卻與強制執行**：若距離上次執行小於 25 分鐘，系統將自動煞車中止，完美避免重複消耗配額；同時支援透過 GitHub UI 手動傳遞 `SKIP_COOLDOWN=true` 以繞過冷卻限制，保留維運彈性。
+- **穩定核心：自建 Linux 伺服器**：為徹底解決公有雲 (如 GitHub Actions) 常態性 1~30 分鐘以上不等的排程延遲 (Cron Jitter)，本專案特別部署了一台自建 Linux 伺服器來穩定運行 n8n，作為系統的核心監控塔台，確保極致的排程精準度。
+- **零信任內網穿透 (Zero-Trust Tunneling)**：為了保護自建伺服器不暴露於危險的公網，導入了 Tailscale VPN。雲端的 GitHub Actions 虛擬機在執行期間，會透過 Ephemeral Auth Key 短暫加入私有內網，安全呼叫本地端 n8n 後無痕註銷，達成極致的資安防護。
+- **分散式鎖定與全域冷卻 (Distributed Lock & Cooldown)**：建立在地端與雲端雙系統協作的基礎上，為防範排程交錯引發的「競爭危害」，於 Supabase 實作了帶有 `NOT NULL` 約束的嚴謹狀態機。距離上次執行小於 25 分鐘的任務將被自動煞車，完美避免 API 配額浪費；並保留透過 UI 手動傳遞 `SKIP_COOLDOWN=true` 以繞過限制的維運彈性。
 
 ### **3. 雙活看門狗異常監控 (Active-Passive Watchdog)**
 
-透過 n8n 構建兩道防護網，徹底解決腳本崩潰造成的死鎖 (Deadlock)：
+透過 n8n 構建兩道防護網，避免腳本崩潰造成鎖的遺失：
 
 - **路徑 A (精準事件驅動)**：Python 啟動上鎖時，透過 Webhook 通知 n8n 啟動 15 分鐘精準倒數，超時未解鎖即發送 Email 警報。
 - **路徑 B (全局定時掃描)**：n8n 每 15 分鐘主動巡邏 Supabase，精準捕捉「猝死 (未成功發送 Webhook 即崩潰)」的殭屍鎖定紀錄。
@@ -38,12 +38,7 @@
 
 - 避免傳統的 Foreign Key 連鎖刪除，yt_live_logs 與 yt_stats_daily 為不可變的歷史事實，即使未來母表中的頻道或影片被清理，歷史同接與成長曲線依然保留。
 
-### **5. 零信任內網穿透 (Zero-Trust Tunneling)**
-
-- 使用 **Tailscale Ephemeral Auth Key**。
-- GitHub Actions 虛擬機在執行期間短暫加入私有內網 (VPN)，安全地呼叫本地端 n8n 的 Webhook。任務結束後無痕註銷，避免 n8n 暴露於公網，達成極致的資安防護。
-
-### **6. 數據不可變性設計 (Immutable Logs for OLAP)**
+### **5. 數據不可變性設計 (Immutable Logs for OLAP)**
 
 - 避免傳統的 Foreign Key 連鎖刪除，`yt_live_logs` 與 `yt_stats_daily` 為不可變的歷史事實，即使未來母表中的頻道或影片被清理，歷史同接與成長曲線依然保留。
 ## **🗄️ 系統架構與資料庫設計 (Schema)**
