@@ -35,7 +35,7 @@
 2. **【】標準括號的負向效應**：帶有標準格式括號（如【雜談】、【遊戲】）的標題，往往屬於「例行性直播」，此類標題通常缺乏懸念，較難成為吸引非訂閱者的火紅內容。
 3. **長尾流量差異**：直播存檔 (Live Archive) 在轉為 VOD 後的長尾點閱轉換率，顯著低於經過精心剪輯的一般影片。
 
-### _@@@插入圖片@@@_
+<img width="2284" height="1507" alt="image" src="https://github.com/user-attachments/assets/cee0f689-39e0-4c37-9fd2-03dd6b3f5bd7" />
 
 ## **🎨 Part 3: 頻道經營模式分群 (K-Means Clustering & PCA)**
 
@@ -52,7 +52,7 @@
 | **【小型直播類】(小型台)** | 直播 90% / Shorts 8% | 策略同中大台，但基數小。社群純度高，正處於成長的階段。 |
 | **【事件驅動類】(事件爆發)** | 依賴大型活動 | 中位數同接普通，但大型企劃的同接爆發力為**28.5倍**，以話題性與事件行銷為主。 |
 
-### _@@@插入圖片@@@_
+<img width="3600" height="2400" alt="image" src="https://github.com/user-attachments/assets/6a5db236-7d8e-4ed7-9d6f-55095647dc60" />
 
 ## **🧪 Part 4: 粉絲互動率統計檢定 (ANOVA & Tukey HSD)**
 
@@ -66,7 +66,8 @@
 
 **統計結果**
 
-### _@@@插入圖片@@@_
+<img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/88394ea4-8b26-459a-a0a0-c08774bdad2e" />
+
 (避免虛無假設，種類間存在顯著差異)。
 
 **Tukey 事後檢定結論**：
