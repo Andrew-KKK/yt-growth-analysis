@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VTuber Live Trends Dashboard</title>
+    
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 Apache ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <!-- 載入 Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        input[type="checkbox"] { accent-color: #3b82f6; cursor: pointer; transform: scale(1.2); } /* 放大 Checkbox */
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md z-20">
+        <div class="container mx-auto max-w-[98%] flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl"></span>
+                <h1 class="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                    YouTube 頻道即時觀看趨勢
+                </h1>
+            </div>
+            <div class="text-base text-slate-400 flex items-center space-x-4">
+                <span id="last-updated" class="font-medium">最後更新: 載入中...</span>
+                <button onclick="fetchDataAndRender()" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg transition-colors text-base font-bold shadow-lg shadow-blue-900/50">
+                    🔄 重新整理數據
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto max-w-[98%] p-4 md:p-6 grid grid-cols-1 lg:grid-cols-5 gap-6 h-full">
+        
+        <!-- 左側面板：說明與雙排行榜 -->
+        <div class="lg:col-span-2 flex flex-col space-y-4 max-h-[85vh]">
+            
+            <div id="config-warning" class="bg-amber-900/50 border border-amber-500/50 rounded-xl p-5 shadow-lg flex-shrink-0">
+                <h2 class="text-amber-400 text-lg font-bold mb-2">⚠️ 尚未設定金鑰</h2>
+                <p class="text-base text-slate-300">請在 HTML 原始碼填寫 Supabase 資訊。</p>
+            </div>
+
+            <!-- 系統與採樣說明 -->
+            <details class="bg-slate-800/80 border border-slate-700 rounded-xl shadow-lg flex-shrink-0 group">
+                <summary class="p-4 text-lg font-bold text-slate-200 cursor-pointer flex justify-between items-center outline-none">
+                    <span>ℹ️ 系統與採樣說明</span>
+                    <span class="text-slate-500 group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div class="p-4 pt-0 text-sm md:text-base text-slate-300 space-y-3 leading-relaxed border-t border-slate-700/50 mt-2">
+                    <p><strong class="text-slate-100">資料限制：</strong>圖表為「每 30 分鐘」採樣一次之快照。相鄰採樣若間隔超過 40 分鐘，系統將自動斷開折線，避免錯誤連線，忠實還原各個獨立的直播時段。</p>
+                    <p><strong class="text-slate-100">直播時段計算：</strong>採用「區間保守估算」。每筆採樣代表 0.5 小時，但<span class="text-amber-400 font-bold">若最新一筆採樣發生於 35 分鐘內（即直播可能正在進行中），系統將暫不計入此 0.5 小時</span>，以確保時數統計最貼近真實且不灌水。</p>
+                </div>
+            </details>
+
+            <!-- 雙排行榜面板 -->
+            <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-lg flex flex-col flex-grow overflow-hidden hidden" id="top-channels-card">
+                <!-- 頁籤按鈕 -->
+                <div class="flex border-b border-slate-700">
+                    <button onclick="switchTab('viewers')" id="tab-btn-viewers" class="flex-1 py-4 text-base font-bold text-blue-400 border-b-2 border-blue-400 transition-colors">
+                        即時最高觀眾數 Top 30
+                    </button>
+                    <button onclick="switchTab('hours')" id="tab-btn-hours" class="flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors">
+                        一周內直播總時數 Top 30
+                    </button>
+                </div>
+                
+                <!-- 控制列 -->
+                <div class="flex justify-between items-center px-4 py-3 bg-slate-800 text-sm border-b border-slate-700/50">
+                    <button onclick="selectTop5CurrentTab()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded transition-colors font-bold shadow-md">
+                        ✓ 勾選本榜單前 5 名
+                    </button>
+                    <button onclick="clearAllSelections()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded transition-colors font-semibold">
+                        清除全部
+                    </button>
+                </div>
+
+                <!-- 清單標頭 -->
+                <div class="flex justify-between items-center px-4 py-3 bg-slate-900/50 text-sm font-semibold text-slate-300 border-b border-slate-700/50">
+                    <div class="flex w-3/5 items-center space-x-3">
+                        <span>選取</span>
+                        <span class="ml-2">頻道名稱</span>
+                    </div>
+                    <div class="flex w-2/5 justify-between items-center text-right">
+                        <span class="w-1/2">訂閱數</span>
+                        <span class="w-1/2" id="list-metric-label">最高觀眾數</span>
+                    </div>
+                </div>
+
+                <!-- 捲動清單區 -->
+                <ul id="channels-list" class="flex-grow overflow-y-auto custom-scrollbar p-2 space-y-1">
+                    <!-- JS 動態插入清單 -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- 右側面板：ECharts 圖表區 -->
+        <div class="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-5 md:p-6 shadow-lg relative flex flex-col min-h-[500px]">
+            <div class="mb-4">
+                <h2 class="text-xl md:text-2xl font-bold text-slate-100">頻道趨勢一覽 (過去 7 天)</h2>
+                <p class="text-base text-slate-400 mt-1">提示：游標移至左側名單可暫時加入圖表預覽。底部提供時間軸拖曳縮放功能。</p>
+            </div>
+            
+            <!-- 載入中遮罩 -->
+            <div id="loading-overlay" class="absolute inset-0 z-10 flex flex-col justify-center items-center bg-slate-800/80 rounded-xl backdrop-blur-sm">
+                <div class="animate-spin rounded-full h-16 w-16 border-4 border-slate-600 border-t-blue-500 mb-6"></div>
+                <p id="loading-text" class="text-blue-400 text-lg font-bold animate-pulse">正在向 Supabase 取得即時數據...</p>
+            </div>
+
+            <!-- ECharts 容器 -->
+            <div id="trend-chart" class="flex-grow w-full h-full min-h-[500px]"></div>
+        </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- 核心 JavaScript 邏輯                       -->
+    <!-- ========================================== -->
+    <script>
+        // 🚨 【重要設定】請填入你的 Supabase 專案資訊
+        const SUPABASE_URL = 'https://ipojebodnjbisewxbdpk.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlwb2plYm9kbmpiaXNld3hiZHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMjcyNzgsImV4cCI6MjA4ODcwMzI3OH0.Jv5g56J_mfHfkDEU8H55lr8naRLfTxwk4z1tp4ftKfc';
+
+        let supabaseClient = null;
+        let chartInstance = null;
+        
+        let dataStore = {
+            viewersTop30: [],
+            hoursTop30: [],
+            trendData: [] 
+        };
+        
+        let currentTab = 'viewers'; 
+        let selectedChannels = new Set(); 
+        let hoveredChannel = null; 
+
+        const formatNumber = (num) => new Intl.NumberFormat('en-US').format(num);
+        const formatSubs = (num) => {
+            if (num >= 10000) return (num / 10000).toFixed(1) + ' 萬';
+            return formatNumber(num);
+        };
+
+        function init() {
+            if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                return;
+            }
+            document.getElementById('config-warning').classList.add('hidden');
+            document.getElementById('top-channels-card').classList.remove('hidden');
+            document.getElementById('top-channels-card').classList.add('flex');
+            
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            chartInstance = echarts.init(document.getElementById('trend-chart'), 'dark');
+            window.addEventListener('resize', () => chartInstance?.resize());
+            fetchDataAndRender();
+        }
+
+        async function fetchDataAndRender() {
+            if (!supabaseClient) return;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "運算排行榜中...";
+            
+            try {
+                // 1. 取得兩個排行榜
+                const [resViewers, resHours] = await Promise.all([
+                    supabaseClient.rpc('rpc_get_top30_viewers'),
+                    supabaseClient.rpc('rpc_get_top30_hours')
+                ]);
+
+                if (resViewers.error) throw resViewers.error;
+                if (resHours.error) throw resHours.error;
+
+                dataStore.viewersTop30 = resViewers.data || [];
+                dataStore.hoursTop30 = resHours.data || [];
+
+                const channelMap = {};
+                [...dataStore.viewersTop30, ...dataStore.hoursTop30].forEach(c => {
+                    channelMap[c.channel_id] = c.channel_title;
+                });
+                const candidateChannelIds = Object.keys(channelMap);
+
+                // 2. 獲取圖表數據
+                let allTrends = [];
+                
+                if (candidateChannelIds.length > 0) {
+                    let lastLogId = -1; 
+                    let isFetching = true;
+                    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+                    while (isFetching) {
+                        document.getElementById('loading-text').innerText = `極速下載圖表數據中 (已獲取 ${allTrends.length} 筆)...`;
+                        
+                        const { data, error } = await supabaseClient
+                            .from('yt_live_logs')
+                            .select('log_id, channel_id, ccv, captured_at')
+                            .gte('captured_at', sevenDaysAgo)
+                            .in('channel_id', candidateChannelIds)
+                            .gt('log_id', lastLogId) 
+                            .order('log_id', { ascending: true }) 
+                            .limit(1000);
+                        
+                        if (error) throw error;
+                        
+                        const mappedData = data.map(d => ({
+                            ...d,
+                            channel_title: channelMap[d.channel_id]
+                        })).filter(d => d.channel_title);
+                        
+                        allTrends = allTrends.concat(mappedData);
+                        
+                        if (data.length < 1000) {
+                            isFetching = false;
+                        } else {
+                            lastLogId = data[data.length - 1].log_id;
+                        }
+                    }
+                }
+                
+                dataStore.trendData = allTrends;
+
+                // 預設勾選
+                if (selectedChannels.size === 0 && dataStore.viewersTop30.length > 0) {
+                    dataStore.viewersTop30.slice(0, 5).forEach(c => selectedChannels.add(c.channel_title));
+                }
+
+                renderList();
+                updateChart();
+                
+                const now = new Date();
+                document.getElementById('last-updated').innerText = `最後更新: ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            } catch (error) {
+                console.error("資料獲取失敗:", error);
+                let errorMsg = error.message || JSON.stringify(error);
+                alert(`🚨 發生錯誤！\n\n${errorMsg}`);
+            } finally {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            const btnV = document.getElementById('tab-btn-viewers');
+            const btnH = document.getElementById('tab-btn-hours');
+            
+            if (tabName === 'viewers') {
+                btnV.className = "flex-1 py-4 text-base font-bold text-blue-400 border-b-2 border-blue-400 transition-colors";
+                btnH.className = "flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors";
+                document.getElementById('list-metric-label').innerText = "即時最高觀眾數";
+            } else {
+                btnH.className = "flex-1 py-4 text-base font-bold text-emerald-400 border-b-2 border-emerald-400 transition-colors";
+                btnV.className = "flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors";
+                document.getElementById('list-metric-label').innerText = "總時數 (hr)";
+            }
+            renderList();
+        }
+
+        function selectTop5CurrentTab() {
+            selectedChannels.clear();
+            const activeData = currentTab === 'viewers' ? dataStore.viewersTop30 : dataStore.hoursTop30;
+            activeData.slice(0, 5).forEach(c => selectedChannels.add(c.channel_title));
+            renderList();
+            updateChart();
+        }
+
+        function clearAllSelections() {
+            selectedChannels.clear();
+            hoveredChannel = null;
+            renderList(); 
+            updateChart(); 
+        }
+
+        function renderList() {
+            const listEl = document.getElementById('channels-list');
+            listEl.innerHTML = '';
+            
+            const activeData = currentTab === 'viewers' ? dataStore.viewersTop30 : dataStore.hoursTop30;
+            const colors = ['text-yellow-400', 'text-slate-300', 'text-amber-500']; 
+            
+            activeData.forEach((channel, index) => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center p-3 hover:bg-slate-700/80 rounded-lg transition-colors group cursor-pointer border-b border-slate-700/30 last:border-0";
+                
+                const isChecked = selectedChannels.has(channel.channel_title);
+                
+                // 放大数据指标的字体
+                const metricText = currentTab === 'viewers' 
+                    ? `<span class="text-blue-300 font-bold text-lg">${formatNumber(channel.max_viewers)}</span>`
+                    : `<span class="text-emerald-400 font-bold text-lg">${channel.live_hours}</span>`;
+
+                li.innerHTML = `
+                    <div class="flex items-center space-x-3 overflow-hidden w-3/5 pr-2">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-500 flex-shrink-0" ${isChecked ? 'checked' : ''}>
+                        <span class="font-black text-sm w-5 text-center flex-shrink-0 ${colors[index] || 'text-slate-400'}">${index + 1}</span>
+                        <span class="text-base md:text-lg font-semibold text-slate-200 truncate group-hover:text-white" title="${channel.channel_title}">${channel.channel_title}</span>
+                    </div>
+                    <div class="flex w-2/5 justify-between items-center text-right pl-2">
+                        <span class="w-1/2 text-sm text-slate-400 font-medium">${formatSubs(channel.subscriber_count)}</span>
+                        <span class="w-1/2 flex-shrink-0">${metricText}</span>
+                    </div>
+                `;
+
+                li.addEventListener('click', (e) => {
+                    if (e.target.tagName.toLowerCase() !== 'input') {
+                        const checkbox = li.querySelector('input');
+                        checkbox.checked = !checkbox.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                });
+
+                const checkbox = li.querySelector('input');
+                checkbox.addEventListener('change', (e) => {
+                    if (e.target.checked) selectedChannels.add(channel.channel_title);
+                    else selectedChannels.delete(channel.channel_title);
+                    updateChart();
+                });
+
+                li.addEventListener('mouseenter', () => {
+                    hoveredChannel = channel.channel_title;
+                    updateChart();
+                });
+                li.addEventListener('mouseleave', () => {
+                    hoveredChannel = null;
+                    updateChart();
+                });
+
+                listEl.appendChild(li);
+            });
+        }
+
+        function updateChart() {
+            if (!chartInstance) return;
+
+            const channelsToShow = new Set(selectedChannels);
+            if (hoveredChannel) channelsToShow.add(hoveredChannel);
+
+            const seriesData = Array.from(channelsToShow).map(title => {
+                const rawPoints = dataStore.trendData.filter(d => d.channel_title === title);
+                const processedData = [];
+                
+                for (let i = 0; i < rawPoints.length; i++) {
+                    const currentPoint = rawPoints[i];
+                    const currentTime = new Date(currentPoint.captured_at).getTime();
+                    
+                    if (i > 0) {
+                        const prevTime = new Date(rawPoints[i-1].captured_at).getTime();
+                        const timeDiffMinutes = (currentTime - prevTime) / (1000 * 60);
+                        
+                        if (timeDiffMinutes > 40) {
+                            processedData.push([currentTime - 1000, null]); 
+                        }
+                    }
+                    processedData.push([currentTime, currentPoint.ccv]);
+                }
+
+                const isHovered = (title === hoveredChannel);
+                
+                return {
+                    name: title,
+                    type: 'line',
+                    smooth: false, 
+                    showSymbol: true, 
+                    symbolSize: isHovered ? 10 : 6, // 稍微放大點
+                    z: isHovered ? 10 : 1, 
+                    lineStyle: { width: isHovered ? 6 : 3, opacity: 1 }, // 線條變粗
+                    itemStyle: { opacity: 1 },
+                    connectNulls: false, 
+                    data: processedData
+                };
+            });
+
+            const option = {
+                backgroundColor: 'transparent',
+                animation: false, 
+                // 新增圖例 (Legend) 設定
+                legend: {
+                    type: 'scroll',
+                    top: 0,
+                    left: '1%', // 靠左對齊
+                    textStyle: { color: '#cbd5e1', fontSize: 14, fontWeight: '500' },
+                    pageIconColor: '#3b82f6', // 捲動按鈕顏色
+                    pageTextStyle: { color: '#cbd5e1' }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', label: { backgroundColor: '#1e293b', fontSize: 14 } },
+                    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                    borderColor: '#475569',
+                    textStyle: { color: '#f8fafc', fontSize: 16, fontWeight: 'bold' }, 
+                    padding: 12
+                },
+                // 微調 grid 的 top，給圖例留出空間 (從 5% 改為 12%)
+                grid: { left: '3%', right: '4%', bottom: '15%', top: '12%', containLabel: true },
+                dataZoom: [
+                    { type: 'inside', start: 0, end: 100 },
+                    { 
+                        type: 'slider', 
+                        bottom: 0, 
+                        textStyle: { color: '#e2e8f0', fontSize: 14, fontWeight: 'bold' }, // 放大縮放軸字體
+                        height: 35, // 縮放軸加高
+                        borderColor: '#334155' 
+                    }
+                ],
+                xAxis: {
+                    type: 'time',
+                    boundaryGap: false,
+                    axisLine: { lineStyle: { color: '#64748b', width: 2 } },
+                    axisLabel: { color: '#cbd5e1', fontSize: 14, fontWeight: '500', margin: 12 }, // 放大 X 軸字體
+                    splitLine: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '觀眾數 (CCV)',
+                    nameTextStyle: { color: '#cbd5e1', fontSize: 16, fontWeight: 'bold', padding: [0, 0, 0, 20] }, // 放大 Y 軸標題
+                    axisLine: { lineStyle: { color: '#64748b', width: 2 } },
+                    axisLabel: { color: '#cbd5e1', fontSize: 14, fontWeight: '500', margin: 12 }, // 放大 Y 軸字體
+                    splitLine: { lineStyle: { color: '#334155', type: 'dashed' } }
+                },
+                series: seriesData
+            };
+
+            chartInstance.setOption(option, { replaceMerge: ['series'] });
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
