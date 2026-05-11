@@ -38,7 +38,7 @@
 
     <main class="flex-grow container mx-auto max-w-[98%] p-4 md:p-6 flex flex-col h-full">
         
-        <!-- 🌟 新增：全局統計數據卡片列 🌟 -->
+        <!-- 全局統計數據卡片列 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="system-stats-bar">
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex items-center justify-between shadow-lg">
                 <div>
@@ -78,9 +78,9 @@
                         <span class="text-slate-500 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
                     <div class="p-4 pt-0 text-sm md:text-base text-slate-300 space-y-3 leading-relaxed border-t border-slate-700/50 mt-2">
-                        <p><strong class="text-slate-100">本專案目的：</strong>本儀表板旨在即時追蹤 YouTube 頻道的直播觀眾數與總時數。透過自動化爬蟲定時採集，將海量時序資料轉化為高互動圖表。底層特別優化了巨量數據的載入效能，並導入智慧斷點邏輯，力求精準呈現各頻道的發展軌跡。</p>
-                        <p><strong class="text-slate-100">資料限制：</strong>圖表為「每 30 分鐘」採樣一次之快照。相鄰採樣若間隔超過 40 分鐘，系統將自動斷開折線，避免錯誤連線。</p>
-                        <p><strong class="text-slate-100">直播時段計算：</strong>採用「區間保守估算」。<span class="text-amber-400 font-bold">若最新一筆採樣發生於 35 分鐘內，系統將暫不計入此 0.5 小時</span>，以確保時數統計最貼近真實且不灌水。</p>
+                        <p><strong class="text-slate-100">本專案目的：</strong>本儀表板旨在即時追蹤 YouTube 頻道的直播觀眾數與總時數。底層優化了數據載入效能。</p>
+                        <p><strong class="text-slate-100">資料限制：</strong>數據皆為「每 30 分鐘」採樣一次之快照。。</p>
+                        <p><strong class="text-slate-100">直播時段計算：</strong>以區間保守估算，<span class="text-amber-400 font-bold">若最新一筆採樣發生於 35 分鐘內，系統將暫不計入此 0.5 小時</span>。</p>
                     </div>
                 </details>
 
@@ -88,7 +88,7 @@
                 <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-lg flex flex-col flex-grow overflow-hidden hidden" id="top-channels-card">
                     <div class="flex border-b border-slate-700">
                         <button onclick="switchTab('viewers')" id="tab-btn-viewers" class="flex-1 py-4 text-base font-bold text-blue-400 border-b-2 border-blue-400 transition-colors">
-                            即時最高觀眾數 Top 30
+                            一周內即時觀眾數 Top 30
                         </button>
                         <button onclick="switchTab('hours')" id="tab-btn-hours" class="flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors">
                             一周內直播總時數 Top 30
@@ -111,7 +111,7 @@
                         </div>
                         <div class="flex w-2/5 justify-between items-center text-right">
                             <span class="w-1/2">訂閱數</span>
-                            <span class="w-1/2" id="list-metric-label">最高觀眾數</span>
+                            <span class="w-1/2" id="list-metric-label">一周內最高即時觀眾數</span>
                         </div>
                     </div>
 
@@ -123,7 +123,7 @@
             <div class="lg:col-span-3 bg-slate-800 border border-slate-700 rounded-xl p-5 md:p-6 shadow-lg relative flex flex-col min-h-[500px]">
                 <div class="mb-4">
                     <h2 class="text-xl md:text-2xl font-bold text-slate-100">頻道趨勢一覽 (過去 7 天)</h2>
-                    <p class="text-base text-slate-400 mt-1">游標移至左側名單可暫時加入圖表預覽。底部提供時間軸拖曳縮放功能。</p>
+                    <p class="text-base text-slate-400 mt-1">游標移至左側名單可暫時加入圖表預覽。底部時間軸提供拖曳縮放功能。</p>
                 </div>
                 
                 <div id="loading-overlay" class="absolute inset-0 z-10 flex flex-col justify-center items-center bg-slate-800/80 rounded-xl backdrop-blur-sm">
@@ -208,7 +208,7 @@
                     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
                     while (isFetching) {
-                        document.getElementById('loading-text').innerText = `極速下載圖表數據中 (已獲取 ${allTrends.length} 筆)...`;
+                        document.getElementById('loading-text').innerText = `下載圖表數據中 (已獲取 ${allTrends.length} 筆)...`;
                         const { data, error } = await supabaseClient
                             .from('yt_live_logs').select('log_id, channel_id, ccv, captured_at')
                             .gte('captured_at', sevenDaysAgo).in('channel_id', candidateChannelIds)
@@ -250,7 +250,7 @@
             if (tabName === 'viewers') {
                 btnV.className = "flex-1 py-4 text-base font-bold text-blue-400 border-b-2 border-blue-400 transition-colors";
                 btnH.className = "flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors";
-                document.getElementById('list-metric-label').innerText = "即時最高觀眾數";
+                document.getElementById('list-metric-label').innerText = "一周內最高即時觀眾數";
             } else {
                 btnH.className = "flex-1 py-4 text-base font-bold text-emerald-400 border-b-2 border-emerald-400 transition-colors";
                 btnV.className = "flex-1 py-4 text-base font-bold text-slate-400 border-b-2 border-transparent hover:text-slate-200 transition-colors";
@@ -379,7 +379,7 @@
                     splitLine: { show: false }
                 },
                 yAxis: {
-                    type: 'value', name: '觀眾數 (CCV)',
+                    type: 'value', name: '即時觀眾數',
                     nameTextStyle: { color: '#cbd5e1', fontSize: 16, fontWeight: 'bold', padding: [0, 0, 0, 20] },
                     axisLine: { lineStyle: { color: '#64748b', width: 2 } },
                     axisLabel: { color: '#cbd5e1', fontSize: 14, fontWeight: '500', margin: 12 }, splitLine: { lineStyle: { color: '#334155', type: 'dashed' } }
