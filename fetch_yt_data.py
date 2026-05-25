@@ -18,7 +18,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") 
 
 # 版本號 V32：導入資料庫端 RPC 狀態機鎖 (Database FSM Lock)
-VERSION = "2026.05.11.V32-FSMLock" 
+VERSION = "2026.05.11.V32.1-FSMLock" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
@@ -174,7 +174,7 @@ def fetch_and_save():
     except Exception as e:
         is_snapshot_mode = True
     
-    mode_text = "【全量快照 (3hr) + 同接監控】" if is_snapshot_mode else "【僅同接監控 (30min)】"
+    mode_text = "【全量快照 (per 3hr) + 同接監控】" if is_snapshot_mode else "【僅同接監控 (per 30min)】"
     print(f"🚀 啟動 {mode_text} 任務...")
     
     available_keys = get_keys_by_preference()
