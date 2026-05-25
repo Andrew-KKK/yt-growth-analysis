@@ -1,7 +1,7 @@
 import os
 import sys
 import re
-import requests # 用於發送 n8n Webhook
+import requests
 from datetime import datetime, timezone, timedelta
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -12,20 +12,19 @@ sys.stdout.reconfigure(line_buffering=True)
 
 # 環境變數獲取
 YT_API_KEY = os.environ.get("YT_API_KEY")
-YT_API_KEY_2 = os.environ.get("YT_API_KEY_2") # 備用金鑰
+YT_API_KEY_2 = os.environ.get("YT_API_KEY_2")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") 
 
-# 版本號 V31：導入事件驅動看門狗 (Event-Driven Watchdog)
-VERSION = "2026.04.27.V31.4-EventWatchdog" 
+# 版本號 V32：導入資料庫端 RPC 狀態機鎖 (Database FSM Lock)
+VERSION = "2026.05.11.V32-FSMLock" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
-DEADLOCK_MINUTES = 10 # 超過此時間的 RUNNING 視為死鎖
+DEADLOCK_MINUTES = 10 # 超過此時間的 RUNNING 視為執行錯誤導致沒有被解開的鎖
 
 def load_channel_ids(filename="channels.txt"):
-    """從外部純文字檔讀取頻道 ID 清單"""
     ids = []
     try:
         with open(filename, 'r', encoding='utf-8') as f:
@@ -38,24 +37,18 @@ def load_channel_ids(filename="channels.txt"):
                     ids.append(actual_id)
         return ids
     except FileNotFoundError:
-        print(f"❌ 嚴重錯誤：找不到 {filename}！請確保該檔案存在於儲存庫中。")
+        print(f"❌ 嚴重錯誤：找不到 {filename}！")
         sys.exit(1)
 
 def get_keys_by_preference():
-    """根據時間決定金鑰的優先使用順序 (時間分流機制)"""
     keys = []
-    # 偶數小時優先用 Key 2，奇數小時優先用 Key 1
     if YT_API_KEY_2 and datetime.now(timezone.utc).hour % 2 == 0:
         keys = [YT_API_KEY_2, YT_API_KEY]
     else:
         keys = [YT_API_KEY, YT_API_KEY_2]
-    
-    # 過濾掉未設定的 None 金鑰
-    valid_keys = [k for k in keys if k]
-    return valid_keys
+    return [k for k in keys if k]
 
 class SmartYouTubeAPI:
-    """智慧 API 代理層：處理自動連線與配額耗盡時的熱切換 (Failover)"""
     def __init__(self, keys):
         if not keys:
             print("❌ 錯誤：未提供任何 YouTube API 金鑰！")
@@ -63,7 +56,6 @@ class SmartYouTubeAPI:
         self.keys = keys
         self.current_idx = 0
         self.client = build("youtube", "v3", developerKey=self.keys[self.current_idx])
-        
         self._print_current_key("初始化連線")
 
     def _print_current_key(self, action_msg):
@@ -73,44 +65,36 @@ class SmartYouTubeAPI:
         print(f"🔑 {action_msg}: 使用 {key_label} [{masked}]")
 
     def _handle_error_and_retry(self, error):
-        """檢查是否為配額耗盡，並嘗試切換金鑰"""
         if isinstance(error, HttpError) and error.resp.status in [403]:
             error_content = str(error).lower()
             if "quotaexceeded" in error_content or "daily limit" in error_content:
                 if self.current_idx + 1 < len(self.keys):
                     self.current_idx += 1
-                    print(f"\n⚠️ 警告：偵測到 API 配額耗盡 (Quota Exceeded)！")
+                    print(f"\n⚠️ 警告：偵測到 API 配額耗盡！")
                     self._print_current_key("自動熱切換至下一把金鑰")
-                    # 重新建立 YouTube 客戶端連線
                     self.client = build("youtube", "v3", developerKey=self.keys[self.current_idx])
-                    return True # 允許重試
-        return False # 無法重試或非配額錯誤，交由外層處理
+                    return True
+        return False
 
-    # --- 以下為 API 封裝方法，內建無窮重試迴圈直到成功或金鑰全數耗盡 ---
-    
     def get_channels(self, **kwargs):
         while True:
-            try:
-                return self.client.channels().list(**kwargs).execute()
+            try: return self.client.channels().list(**kwargs).execute()
             except Exception as e:
                 if not self._handle_error_and_retry(e): raise
 
     def get_activities(self, **kwargs):
         while True:
-            try:
-                return self.client.activities().list(**kwargs).execute()
+            try: return self.client.activities().list(**kwargs).execute()
             except Exception as e:
                 if not self._handle_error_and_retry(e): raise
 
     def get_videos(self, **kwargs):
         while True:
-            try:
-                return self.client.videos().list(**kwargs).execute()
+            try: return self.client.videos().list(**kwargs).execute()
             except Exception as e:
                 if not self._handle_error_and_retry(e): raise
 
 def safe_parse_iso(date_str):
-    """強健的 ISO 時間解析，處理 Supabase 回傳的不規則微秒位數"""
     if not date_str: return None
     date_str = date_str.replace('Z', '+00:00')
     try:
@@ -135,107 +119,77 @@ def parse_duration_to_seconds(duration_str):
 
 def fetch_and_save():
     supabase = get_supabase_client()
-
-    print(f"🚀 [版本 {VERSION}] 啟動環境與冷卻檢查...")
+    now_utc = datetime.now(timezone.utc)
+    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
     
     skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
+    source = "n8n" if os.environ.get("N8N_TRIGGER") else "server_cron"
     
-    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_actions"
-    print(f"本次執行觸發來源: {source}")
-    
-    now_utc = datetime.now(timezone.utc)
-    print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')}")
-    tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
-    print(f"🇹🇼 目前時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🚀 [版本 {VERSION}] 啟動環境與狀態機守衛...")
+    print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')} | 🇹🇼 台灣: {tw_now.strftime('%H:%M:%S')}")
 
-    
-    try:
-        last_run_res = supabase.table("github_actions_logs").select("*").order("run_at", desc=True).limit(1).execute()
-        if last_run_res.data:
-            last_log = last_run_res.data[0]
-            last_run_time = safe_parse_iso(last_log.get("run_at"))
-            last_status = last_log.get("status", "COMPLETED")
-            elapsed = now_utc - last_run_time
-            
-            # 情境 A：上一筆卡在 RUNNING
-            if last_status == "RUNNING" and not skip_cooldown:
-                if elapsed < timedelta(minutes=DEADLOCK_MINUTES):
-                    print(f"🔒 系統目前正在執行中 (已執行 {elapsed.seconds // 60} 分鐘)。")
-                    print("🛑 避免競爭危害 (Race Condition)，本次任務自動退出。")
-                    return # 程式中止
-                else:
-                    # n8n 理論上已經寄信了，這裡 Python 只需要自己接管任務即可
-                    print(f"☠️ 警告：偵測到上一筆任務卡死 (已執行 {elapsed.seconds // 60} 分鐘)！判定為 Deadlock。")
-                    print("🔧 啟動自我修復程序，強制接管...")
-
-            # 情境 B：上一筆已順利 COMPLETED (進入常規冷卻檢查)
-            elif last_status == "COMPLETED" and not skip_cooldown:
-                if elapsed < timedelta(minutes=COOLDOWN_MINUTES):
-                    print(f"⏳ 冷卻中：距離上次成功執行僅 {elapsed.seconds // 60} 分鐘。")
-                    print("🛑 為了節省 API Quota，本次任務自動取消，等待下次觸發")
-                    return # 程式中止
-    except Exception as e:
-        print(f"⚠️ 讀取心跳紀錄失敗 ({e})，判斷為首次執行或表結構異常，跳過冷卻檢查。")
-
+    # ==============================================================================
+    # 🌟 核心升級：呼叫資料庫狀態機 (RPC FSM Lock)
+    # 不再由 Python 判斷時間，完全交由資料庫的 Guard Conditions 把關
+    # ==============================================================================
     current_log_id = None
     try:
-        # 1. 寫入 RUNNING 日誌 (上鎖)
-        insert_res = supabase.table("github_actions_logs").insert({
-            "trigger_source": f"{source}{'_forced' if skip_cooldown else ''}", 
-            "version": VERSION,
-            "status": "RUNNING"
-        }).execute()
+        rpc_params = {
+            "p_cooldown_min": 0 if skip_cooldown else COOLDOWN_MINUTES,
+            "p_deadlock_min": DEADLOCK_MINUTES,
+            "p_source": f"{source}{'_forced' if skip_cooldown else ''}",
+            "p_version": VERSION
+        }
+        lock_res = supabase.rpc("rpc_acquire_lock", rpc_params).execute()
+        current_log_id = lock_res.data
         
-        if insert_res.data:
-            current_log_id = insert_res.data[0].get("log_id")
-            print(f"✅ 成功寫入啟動日誌並上鎖 (Log ID: {current_log_id})")
-            
-            # 2. 呼叫 n8n 看門狗掛號
-            if N8N_WATCHDOG_WEBHOOK:
-                try:
-                    requests.post(N8N_WATCHDOG_WEBHOOK, json={"log_id": current_log_id}, timeout=3)
-                    print(f"🐕 已呼叫 n8n 看門狗，n8n 看門狗將自動查驗狀態。")
-                except Exception as e:
-                    print(f"⚠️ 呼叫看門狗失敗 ({e})，但不影響數據採集。")
+        if not current_log_id:
+            print(f"🛑 守衛攔截：狀態機拒絕轉換 (仍在執行中或處於 {COOLDOWN_MINUTES} 分鐘冷卻期內)。")
+            print("💤 本次任務安全退出，等待下次喚醒。")
+            return  # 被狀態機擋下，直接退出
+
+        print(f"✅ 成功通過守衛，獲取狀態機鎖 (Log ID: {current_log_id})")
+        
+        # 呼叫 n8n 看門狗掛號
+        if N8N_WATCHDOG_WEBHOOK:
+            try:
+                requests.post(N8N_WATCHDOG_WEBHOOK, json={"log_id": current_log_id}, timeout=3)
+                print(f"🐕 已呼叫 n8n 看門狗查驗狀態。")
+            except Exception as e:
+                print(f"⚠️ 呼叫看門狗失敗 ({e})，但不影響執行。")
+                
     except Exception as e:
-        print(f"⚠️ 寫入啟動日誌失敗 ({e})，但不影響數據採集。")
-    
-    # --- 模式判定 (狀態驅動) ---
+        print(f"⚠️ 狀態機鎖獲取失敗 ({e})，可能 RPC 未設定。安全起見，繼續執行。")
+
+    # --- 高低頻模式判定 (保留原本以時間差作為排程分流的邏輯) ---
     is_snapshot_mode = False
     try:
         res = supabase.table("yt_stats_daily").select("check_time").order("check_time", desc=True).limit(1).execute()
         if res.data and "check_time" in res.data[0]:
             last_check = safe_parse_iso(res.data[0]["check_time"])
-            time_diff = now_utc - last_check
-            if time_diff >= timedelta(hours=2, minutes=45):
+            if (now_utc - last_check) >= timedelta(hours=2, minutes=45):
                 is_snapshot_mode = True
         else:
             is_snapshot_mode = True 
     except Exception as e:
-        print(f"⚠️ 無法查詢上次快照時間 ({e})，安全起見執行全量快照。")
         is_snapshot_mode = True
     
-    mode_text = "【全量快照 + 同接監控】" if is_snapshot_mode else "【僅同接監控】"
-    print(f"🚀 [版本 {VERSION}] 啟動{mode_text}任務...")
+    mode_text = "【全量快照 (3hr) + 同接監控】" if is_snapshot_mode else "【僅同接監控 (30min)】"
+    print(f"🚀 啟動 {mode_text} 任務...")
     
-    # 初始化智慧 API 代理層
     available_keys = get_keys_by_preference()
     yt_api = SmartYouTubeAPI(available_keys)
-    
     channel_ids = load_channel_ids("channels.txt")
     if not channel_ids: return
-
     quota_used = 0
 
-    # --- 步驟 1: 頻道基本資料與統計 ---
+    # --- 步驟 1: 頻道基本資料 ---
     print(f"📡 步驟 1: 獲取頻道清單狀態 (頻道數: {len(channel_ids)})...")
     channel_map = {}
     parts = "snippet,statistics" if is_snapshot_mode else "snippet"
-    
     for i in range(0, len(channel_ids), 50):
         batch = channel_ids[i:i+50]
         try:
-            # 替換為使用智慧代理層
             ch_res = yt_api.get_channels(part=parts, id=",".join(batch))
             quota_used += 1
             for item in ch_res.get("items", []):
@@ -245,26 +199,17 @@ def fetch_and_save():
                     "custom_url": item["snippet"].get("customUrl"),
                     "subs": int(stats.get("subscriberCount", 0)) if is_snapshot_mode else None,
                     "views": int(stats.get("viewCount", 0)) if is_snapshot_mode else None,
-                    "raw_snippet": item["snippet"],
-                    "raw_stats": stats
+                    "raw_snippet": item["snippet"], "raw_stats": stats
                 }
         except Exception as e:
             print(f"   ❌ 獲取頻道資料失敗: {e}")
 
-    # 利用對稱差集 (Symmetric Difference)檢查頻道清單及回傳清單是否相符
-    mismatch_ids = set(channel_ids) ^ set(channel_map.keys())
-    if mismatch_ids:
-        print(f"⚠️ 警告：名單雙向比對異常！發現 {len(mismatch_ids)} 個不一致的 ID (可能是打錯字、被刪除或 API 異常回傳):")
-        print(mismatch_ids)
-    
     # --- 步驟 2: 偵測活動 ---
     print(f"📡 步驟 2: 掃描最近活動...")
-    all_video_ids = []
-    cid_to_video_ids = {}
+    all_video_ids, cid_to_video_ids = [], {}
     for cid in channel_ids:
         try:
             max_r = 15 if is_snapshot_mode else 5
-            # 替換為使用智慧代理層
             act_res = yt_api.get_activities(part="snippet,contentDetails", channelId=cid, maxResults=max_r)
             quota_used += 1
             vids = []
@@ -277,25 +222,17 @@ def fetch_and_save():
                     vids.append(vid)
                     if vid not in all_video_ids: all_video_ids.append(vid)
             cid_to_video_ids[cid] = vids
-        except Exception as e:
-            pass 
+        except Exception: pass 
 
-    # --- 步驟 3: 批量解析影片狀態與同接 ---
-    live_info_map = {}
-    video_details_list = []
-    live_logs_to_insert = []
-    
+    # --- 步驟 3: 解析影片與同接 ---
+    live_info_map, video_details_list, live_logs_to_insert = {}, [], []
     if all_video_ids:
-        print(f"📡 步驟 3: 解析 {len(all_video_ids)} 支影片的數據...")
-        vid_parts = "snippet,liveStreamingDetails,contentDetails,statistics"
-        
+        print(f"📡 步驟 3: 解析 {len(all_video_ids)} 支影片數據...")
         for i in range(0, len(all_video_ids), 50):
             batch_vids = all_video_ids[i:i+50]
             try:
-                # 替換為使用智慧代理層
-                vid_res = yt_api.get_videos(part=vid_parts, id=",".join(batch_vids))
+                vid_res = yt_api.get_videos(part="snippet,liveStreamingDetails,contentDetails,statistics", id=",".join(batch_vids))
                 quota_used += 1
-                
                 for v_item in vid_res.get("items", []):
                     vid = v_item["id"]
                     snippet = v_item.get("snippet", {})
@@ -304,48 +241,38 @@ def fetch_and_save():
                     
                     status = snippet.get("liveBroadcastContent")
                     ccv = int(lsd.get("concurrentViewers")) if "concurrentViewers" in lsd else None
-                    actual_start = lsd.get("actualStartTime")
                     
-                    # 待機室過濾
                     if status == "upcoming":
                         sch = lsd.get("scheduledStartTime")
-                        if sch:
-                            sch_time = datetime.fromisoformat(sch.replace("Z", "+00:00"))
-                            if (sch_time - now_utc) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
-                                status = "none"
+                        if sch and (datetime.fromisoformat(sch.replace("Z", "+00:00")) - now_utc) > timedelta(days=WAITING_ROOM_THRESHOLD_DAYS):
+                            status = "none"
                     
-                    live_info_map[vid] = {"status": status, "ccv": ccv, "start": actual_start}
+                    live_info_map[vid] = {"status": status, "ccv": ccv, "start": lsd.get("actualStartTime")}
 
                     if status == "live" and ccv is not None:
                         live_logs_to_insert.append({
-                            "channel_id": snippet.get("channelId"),
-                            "video_id": vid,
-                            "ccv": ccv,
-                            "captured_at": now_utc.isoformat()
+                            "channel_id": snippet.get("channelId"), "video_id": vid,
+                            "ccv": ccv, "captured_at": now_utc.isoformat()
                         })
 
                     v_type = "Live" if "liveStreamingDetails" in v_item else "Shorts" if parse_duration_to_seconds(v_item.get("contentDetails", {}).get("duration", "")) <= 61 else "Video"
                     video_details_list.append({
                         "video_id": vid, "channel_id": snippet.get("channelId"), "title": snippet.get("title"),
                         "video_type": v_type, "published_at": snippet.get("publishedAt"),
-                        "view_count": int(stats["viewCount"]) if "viewCount" in stats else None,
-                        "like_count": int(stats["likeCount"]) if "likeCount" in stats else None,
-                        "comment_count": int(stats["commentCount"]) if "commentCount" in stats else None,
+                        "view_count": int(stats.get("viewCount", 0)) if "viewCount" in stats else None,
+                        "like_count": int(stats.get("likeCount", 0)) if "likeCount" in stats else None,
+                        "comment_count": int(stats.get("commentCount", 0)) if "commentCount" in stats else None,
                         "last_updated_at": now_utc.isoformat()
                     })
-            except Exception as e:
-                print(f"   ❌ 影片數據解析失敗: {e}")
+            except Exception as e: print(f"   ❌ 解析失敗: {e}")
 
-    # --- 步驟 4: 執行資料庫存檔與狀態報告 ---
-    print(f"💾 步驟 4: 執行資料庫存檔與狀態報告...")
+    # --- 步驟 4: 存檔 ---
+    print(f"💾 步驟 4: 執行資料庫存檔...")
     status_priority = {"live": 3, "upcoming": 2, "none": 1}
-    
     for cid, data in channel_map.items():
-        best_vid = None
-        current_max_prio = -1
+        best_vid, current_max_prio = None, -1
         for vid in cid_to_video_ids.get(cid, []):
-            info = live_info_map.get(vid, {})
-            prio = status_priority.get(info.get("status"), 0)
+            prio = status_priority.get(live_info_map.get(vid, {}).get("status"), 0)
             if prio > current_max_prio:
                 current_max_prio = prio
                 best_vid = vid
@@ -355,15 +282,10 @@ def fetch_and_save():
         best_status = final_info.get("status", "none")
         ccv_val = final_info.get("ccv")
         
-        log_msg = f"   📝 {data['title']} | 判定結果: {best_status}"
-        if best_status == "live" and ccv_val is not None:
-            log_msg += f" (同接: {ccv_val} 人)"
-        print(log_msg)
+        print(f"   📝 {data['title']} | 判定: {best_status}" + (f" (同接: {ccv_val})" if best_status == "live" and ccv_val is not None else ""))
         
-        try:
-            supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
-        except Exception as e:
-            print(f"      ❌ 頻道母表更新失敗: {e}")
+        try: supabase.table("yt_channels").upsert({"channel_id": cid, "title": data["title"], "custom_url": data["custom_url"]}).execute()
+        except Exception: pass
 
         if is_snapshot_mode:
             try:
@@ -375,41 +297,28 @@ def fetch_and_save():
                     "check_time": now_utc.isoformat(),
                     "raw_json": {"snippet": data["raw_snippet"], "statistics": data["raw_stats"]}
                 }).execute()
-            except Exception as e:
-                print(f"      ❌ 快照寫入失敗: {e}")
+            except Exception: pass
 
     if video_details_list:
-        print(f"🎬 批次更新影片清單 ({len(video_details_list)} 筆)...")
-        try: 
-            supabase.table("yt_videos").upsert(video_details_list).execute()
-        except Exception as e: 
-            print(f"      ❌ 影片清單寫入失敗: {e}")
+        try: supabase.table("yt_videos").upsert(video_details_list).execute()
+        except Exception: pass
 
     if live_logs_to_insert:
-        print(f"📈 記錄即時同接數據 ({len(live_logs_to_insert)} 筆)...")
-        try: 
-            supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
-        except Exception as e: 
-            print(f"      ❌ 同接數據寫入失敗: {e}")
+        try: supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
+        except Exception: pass
 
+    # ==============================================================================
+    # 🌟 狀態機釋放：將 RUNNING 轉換為 COMPLETED
+    # ==============================================================================
     if current_log_id:
         try:
-            supabase.table("github_actions_logs").update({
-                "status": "COMPLETED"
-            }).eq("log_id", current_log_id).execute()
-            print("🔓 任務完成，系統狀態日誌已標記為 COMPLETED。")
+            supabase.table("github_actions_logs").update({"status": "COMPLETED"}).eq("log_id", current_log_id).execute()
+            print("🔓 任務完成，狀態機解鎖 (標記為 COMPLETED)。")
         except Exception as e:
-            print(f"⚠️ 系統解鎖更新失敗 ({e})，n8n 可能會誤判為 Deadlock 並發出警報。")
+            print(f"⚠️ 系統解鎖更新失敗 ({e})，n8n Watchdog 可能會觸發 Deadlock 警報。")
     
-    # --- 總結報告 ---
-    
-    print(f"📊 --- 任務總結報告 ({VERSION}) ---")
-    print(f"📡 模式: {'全量快照' if is_snapshot_mode else '僅同接監控'}")
-    print(f"💰 本次消耗估計 Quota: {quota_used} | 每日配額佔比估計: {(quota_used / 10000) * 100:.2f}%")
-    utc_now = datetime.now(timezone.utc)
-    print(f"🕒 任務結束時間 (UTC): {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    tw_now = utc_now.astimezone(timezone(timedelta(hours=8)))
-    print(f"🇹🇼 任務結束時間 (台灣): {tw_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\n📊 --- 任務總結報告 ({VERSION}) ---")
+    print(f"💰 本次消耗估計 Quota: {quota_used} | 每日佔比估計: {(quota_used / 10000) * 100:.2f}%")
     print(f"------------------------\n")
 
 if __name__ == "__main__":
