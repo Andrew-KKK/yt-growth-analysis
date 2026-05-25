@@ -18,7 +18,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") 
 
 # 版本號 V32：導入資料庫端 RPC 狀態機鎖 (Database FSM Lock)
-VERSION = "2026.05.11.V32.2-FSMLock" 
+VERSION = "2026.05.11.V32.3-FSMLock" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
@@ -123,7 +123,7 @@ def fetch_and_save():
     tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
     
     skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
-    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_cron"    
+    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_action"    
     print(f"🚀 [版本 {VERSION}] 啟動環境與狀態機守衛...")
     print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')} | 🇹🇼 台灣: {tw_now.strftime('%H:%M:%S')}")
 
