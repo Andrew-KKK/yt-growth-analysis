@@ -30,6 +30,20 @@
 3. **數據採集**：依照「高低頻分流邏輯」向 YouTube 請求數據。
 4. **解鎖與存檔**：完成數據寫入後解除資料庫鎖。若執行中途崩潰，則由監控塔台偵測並發送警報。
 
+### 📂 檔案結構 (file Structure)
+```text
+yt-growth-analysis/
+├── .github/
+│   └── workflows/
+│       └── main.yml            # GitHub Actions 自動化排程設定檔 (定時觸發執行資料蒐集程式)
+├── README.md                   # 專案主說明文件
+├── analysis_report.md          # 數據分析
+├── backfill_yt_videos.py       # 歷史影片數據回填腳本
+├── channels.txt                # 系統追蹤的頻道 ID 清單清單
+├── fetch_yt_data.py            # 核心 Python 爬蟲腳本 (串接 YouTube API 與 Supabase)
+├── index.html                  # 即時數據呈現之儀表板網頁 (Vercel 部署入口)
+└── requirements.txt            # Python 環境與依賴套件清單清單
+```
 ### **3. 資料表設計 (Schema)**
 
 | **資料表 (Table)** | **說明與職責** |
