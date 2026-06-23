@@ -5,16 +5,15 @@ on:
     - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
-      n8n_trigger:
-        description: '是否由 n8n 觸發'
+      trigger_source:
+        description: '自訂觸發來源 (如: github_actions_by_local_error)'
         required: false
-        default: 'false'
+        type: string
       skip_cooldown:
         description: '⚠️ 強制執行 (忽略冷卻限制)'
         required: false
         type: boolean
         default: false
-
 
 jobs:
   run-fetcher:
@@ -26,24 +25,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # 從 3.10 升級到 3.11
+          python-version: '3.11'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Tailscale
-        uses: tailscale/github-action@v2
-        with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-          version: 1.62.0 # 指定穩定版本
-          
-      - name: Run fetch_yt_data.py and record result
+      - name: Run fetch script and record result
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           YT_API_KEY_2: ${{ secrets.YT_API_KEY_2 }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          N8N_TRIGGER: ${{ github.event.inputs.n8n_trigger == 'true' && 'true' || '' }}
+          TRIGGER_SOURCE: ${{ github.event.inputs.trigger_source }}
           SKIP_COOLDOWN: ${{ github.event.inputs.skip_cooldown == 'true' && 'true' || 'false' }}
-          N8N_WATCHDOG_WEBHOOK: ${{ secrets.N8N_WATCHDOG_WEBHOOK }}
         run: python fetch_yt_data.py
