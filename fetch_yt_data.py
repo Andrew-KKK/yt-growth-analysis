@@ -17,8 +17,8 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") 
 
-# 版本號 V33：local server fetch
-VERSION = "2026.06.23.V33-local_fetch" 
+# 版本號 V33.1：修改 trigger_source 判斷邏輯
+VERSION = "2026.06.23.V33.1-local_fetch" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
@@ -124,12 +124,10 @@ def fetch_and_save():
     
     skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
     
-    # 支援自訂觸發來源標籤，優先讀取 TRIGGER_SOURCE
+    # 🌟 升級：統一讀取 TRIGGER_SOURCE，移除舊有的 N8N_TRIGGER 邏輯
     custom_source = os.environ.get("TRIGGER_SOURCE")
     if custom_source and custom_source.strip():
-        source = custom_source
-    elif os.environ.get("N8N_TRIGGER"):
-        source = "n8n"
+        source = custom_source.strip()
     else:
         source = "github_cron"
     
