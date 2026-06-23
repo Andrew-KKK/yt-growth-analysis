@@ -17,8 +17,8 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 N8N_WATCHDOG_WEBHOOK = os.environ.get("N8N_WATCHDOG_WEBHOOK") 
 
-# 版本號 V32：導入資料庫端 RPC 狀態機鎖 (Database FSM Lock)
-VERSION = "2026.05.11.V32.3-FSMLock" 
+# 版本號 V33：local server fetch
+VERSION = "2026.06.23.V33-local_fetch" 
 
 COOLDOWN_MINUTES = 25 # 冷卻時間設定 (分鐘)
 WAITING_ROOM_THRESHOLD_DAYS = 30 # 待機室過濾門檻：超過 30 天後的待機室忽略不計
@@ -123,14 +123,21 @@ def fetch_and_save():
     tw_now = now_utc.astimezone(timezone(timedelta(hours=8)))
     
     skip_cooldown = (os.environ.get("SKIP_COOLDOWN") == "true")
-    source = "n8n" if os.environ.get("N8N_TRIGGER") else "github_action"    
+    
+    # 支援自訂觸發來源標籤，優先讀取 TRIGGER_SOURCE
+    custom_source = os.environ.get("TRIGGER_SOURCE")
+    if custom_source and custom_source.strip():
+        source = custom_source
+    elif os.environ.get("N8N_TRIGGER"):
+        source = "n8n"
+    else:
+        source = "github_cron"
+    
     print(f"🚀 [版本 {VERSION}] 啟動環境與狀態機守衛...")
     print(f"🕒 目前時間 (UTC): {now_utc.strftime('%Y-%m-%d %H:%M:%S')} | 🇹🇼 台灣: {tw_now.strftime('%H:%M:%S')}")
 
-    # ==============================================================================
-    # 🌟 核心升級：呼叫資料庫狀態機 (RPC FSM Lock)
+    # 呼叫資料庫狀態機 (RPC FSM Lock)
     # 不再由 Python 判斷時間，完全交由資料庫的 Guard Conditions 把關
-    # ==============================================================================
     current_log_id = None
     try:
         rpc_params = {
@@ -306,9 +313,7 @@ def fetch_and_save():
         try: supabase.table("yt_live_logs").insert(live_logs_to_insert).execute()
         except Exception: pass
 
-    # ==============================================================================
-    # 🌟 狀態機釋放：將 RUNNING 轉換為 COMPLETED
-    # ==============================================================================
+    # 狀態機釋放：將 RUNNING 轉換為 COMPLETED
     if current_log_id:
         try:
             supabase.table("github_actions_logs").update({"status": "COMPLETED"}).eq("log_id", current_log_id).execute()
