@@ -35,7 +35,7 @@ UC7Xglp1fske9zmRe7Oj8YyA # Riko Solari【VSPO! EN】
 UCp_3ej2br9l9L1DSoHVDZGw # Eris Suzukami 【VSPO! EN】
 UCRJV_1aV4aZjFAEUn6o5arw # Juno Umezono【VSPO! EN】
 
-# 子午計畫 count: 16
+# 子午計畫 count: 19
 UCcyTlQ92NIJ4fYR45OFpFQQ # MeridianProject子午計畫
 
 UCs5FNYPHeZz5f7N1BDExxfg # 玖玖巴
@@ -53,7 +53,9 @@ UC8zQumEzXBpWSmbHmr8wMKw # 雪Koyuki Channel
 UC6NXFJInhUYGdKeFHhPrtpA # 幸Sachi Channel
 UCyO8Nae_zF-OpxtbL01Dwow # 煦Hiyori Channel
 UC2mtxQezpgWjqMXF6WkuMiw # 実Hitomi Channel
-# total: 50
+UCt0CvoFAgrhVYd1X4P5Lqng # 莓Ichii Channel
+UC8XL4U2dRKDi4DcjsPnc4Zg # 宓Iseri Channel
+UCHCnxECJBxKrMByroUWSgcw # 璃Miri Channel
 
 # hololive count: 36
 UC10wVt6hoQiwySRhz7RdOUA # hololive DEV_IS ReGLOSS
@@ -93,7 +95,6 @@ UCvN5h1ShZtc7nly3pezRayg # Cecilia Immergreen Ch. hololive-EN
 UCdXAk5MpyLD8594lm_OvtGQ # Raden Ch. 儒烏風亭らでん ‐ ReGLOSS
 UCuI_opAVX6qbxZY-a-AxFuQ # Niko Ch. 虎金妃笑虎 - FLOW GLOW
 UCKMWFR6lAstLa7Vbf5dH7ig # Chihaya Ch. 輪堂 千速 - FLOW GLOW
-# total: 86
 
 # nijisanji count: 44
 UC-JSeFfovhNsEhftt1WHMvg # NIJISANJI EN Official
@@ -141,7 +142,6 @@ UC5Qv2tPOI38OcnqOdUKkn7Q # 千凛あゆむ / Senri Ayumu【にじさんじ】
 UCzcuYIyP-1YcXC96t9J5yWQ # 九里詠太 / Kuri Eita【にじさんじ】
 UC_4QF0dL-9XI9VajsNkMtmQ # Rei7 / Reina【にじさんじ】
 UCFimqykDM5g9a5KxlW_e7ZQ # 男虎 / Ono Tora【にじさんじ】
-# total: 130
 
 # あおぎり高校 count: 14
 UCPLeqi7rIqS9uY4_TrSUOMg # あおぎり高校 - Aogiri Vtuber High School
@@ -159,7 +159,6 @@ UCIwHOJn_3QjBTwQ_gNj7WRA # 萌実ちゃんねる / あおぎり高校
 UCxy3KNlLQiN64tikKipnQNg # 月赴ゐぶき / あおぎり高校
 UCdi5pj0MDQ-3LFNUFIFmD8w # うる虎がーる / あおぎり高校
 UCXXlhNCp1EPbDQ2pzmmy9aw # むじなch / あおぎり高校
-# total: 144
 
 # Neo-Porte count: 22
 UCm5rjZAFQuRrnDCkxnwvWkg # Neo-Porte
@@ -185,7 +184,6 @@ UCEy9cYULQrC2cRlVqJPCcSw # 水無瀬 / Minase # 低頻活動者
 UCZmUoMwjyuQ59sk5_7Tx07A # 夜絆ニウ / yozuna niu
 UCuk7vapXKckSw6yCGGDspDg # 緋月ゆい / Hizuki Yui
 UCbBLqA4HRowpj2JuLrkig5w # 或世イヌ / Aruse Inu # 低頻活動者
-# total: 166
 
 # ゆにれいど count: 19
 UCKofJjNEmQ3LwERp3pRVxtw # ゆにれいど !【公式】
@@ -208,7 +206,6 @@ UCOnPtWuGIz0kTNGcb9FR8xQ # 時羽しう / tokiha shiu
 UCsabgMZxnsDwYzCe9vcQbNw # 鳴子ライチ / Naruko Raichi
 UCUAy59_4jUN0WGB5gLY8LBg # 聖ルナティア / Sei Lunathia
 UC_mXkuKyIkO1hYjSeMvbt5g # 火狩夜れんま / Renma Kagariya
-# total: 185
 
 # ミリプロ count: 10
 UCaDO3fGfvXCP8m85ttSlYww # ミリプロ - MillionProduction -
@@ -222,7 +219,6 @@ UCjKPgy9YPt16z8AFMi-TLeA # ゆらぎゆら / YuragiYura🌙🫧
 UCj63OWl-HQ-I6ORzUWF1EDg # 虹深°ぬふ / Nijipuka Nuhu
 UCekc8SI533NI675r9aCBRcQ # 眠雲ツクリ / NemukumoTsukuri
 UCtQwleVyBMjBGNuUQ7a-KYg # 雨夜リズ / Amayo Liz
-# total: 195
 
 # 深淵組 count: 6
 UCemRJJ91Y8av8WZStaWkoug #  Shinengumivtg ch. 深淵組
@@ -232,14 +228,13 @@ UCL6Mo_l_ebCidjNpsWuyIvg # Rairi ch. 小滝らいり
 UCFuXUFeootqRhipQsIoYnIA # Yuni Ch. 春雨ゆに
 UCkub241MqzeSXmljVrtLVMg # Neru ch. 社ねる
 UCoOPu8WqToJ4jHbBXY6NPrA # Yohira ch. 渉海よひら
-# total: 201
 
 UCFv2z4iM5vHrS8bZPq4fHQQ # HIMEHINA Channel
 
 UCf-PcSHzYAtfcoiBr5C9DZA # 長瀬有花 / YUKA NAGASE
 
 UCXN-ZRdGnFtLiJ8EY1i_alg # Itsuki Natsume / 棗いつき
-# total: 204
+# total: 207
 
 # ---
 # (春魚, 個人勢實況主...)
